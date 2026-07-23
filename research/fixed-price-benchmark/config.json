@@ -1,0 +1,47 @@
+{
+  "experiment_id": "margn-v4-longbench-cost-20260723",
+  "dataset": {
+    "repo": "zai-org/LongBench-v2",
+    "revision": "2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9",
+    "file": "data.json",
+    "expected_rows": 503,
+    "license": "apache-2.0"
+  },
+  "seed": 20260723,
+  "audit_sample_per_length": 33,
+  "target_margin": 0.30,
+  "primary_price_usd": 0.01,
+  "price_grid_usd": [0.001, 0.005, 0.01, 0.05],
+  "guardrail_caps": [32000, 128000],
+  "retry_rates": [0.01, 0.05, 0.10],
+  "token_sensitivity": [0.90, 1.00, 1.10],
+  "fallback_tokenizer": "o200k_base",
+  "models": [
+    {
+      "id": "gpt-5.4-nano",
+      "input_usd_per_million": 0.20,
+      "output_usd_per_million": 1.25,
+      "context_window_tokens": 400000,
+      "source": "https://developers.openai.com/api/docs/models/gpt-5.4-nano",
+      "accessed": "2026-07-23"
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "input_usd_per_million": 0.75,
+      "output_usd_per_million": 4.50,
+      "context_window_tokens": 400000,
+      "source": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+      "accessed": "2026-07-23"
+    }
+  ],
+  "paths": {
+    "cache_dir": "research/fixed-price-benchmark/.cache",
+    "manifest_csv": "research/fixed-price-benchmark/data/dataset-manifest.csv",
+    "rate_cards_json": "research/fixed-price-benchmark/data/rate-cards.json",
+    "per_call_csv": "research/fixed-price-benchmark/results/per-call-costs.csv",
+    "summary_json": "research/fixed-price-benchmark/results/summary.json",
+    "cost_figure_svg": "research/fixed-price-benchmark/results/figures/cost-distribution.svg",
+    "coverage_figure_svg": "research/fixed-price-benchmark/results/figures/price-coverage.svg",
+    "report_md": "research/fixed-price-benchmark/REPORT.md"
+  }
+}

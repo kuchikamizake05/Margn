@@ -5,10 +5,11 @@
 > gross margin.**
 
 - **Status:** hipotesis brainstorming, bukan keputusan produk.
-- **Pembaruan riset:** 22 Juli 2026.
+- **Pembaruan riset:** 23 Juli 2026.
 - **Track utama:** Finance Copilot.
-- **Tingkat keyakinan:** menengah. Problem dan mekanisme biaya nyata, tetapi belum
-  ada telemetry ASP eksternal atau wawancara operator yang membuktikan besarnya pain.
+- **Tingkat keyakinan:** menengah. Variasi biaya dan efek guardrail kini didukung
+  benchmark reproducible, tetapi belum ada telemetry ASP eksternal atau wawancara
+  operator yang membuktikan besarnya pain dan demand produk.
 
 ---
 
@@ -18,6 +19,12 @@ Ide 4 layak dibawa lebih lanjut karena bentuk produknya sempit, mudah
 didemonstrasikan, dan dekat dengan mekanisme bisnis A2MCP: penjual menentukan
 harga tetap per call, sedangkan biaya call dapat berubah karena token, model,
 tool, retry, dan kegagalan.
+
+Benchmark offline terhadap 503 workload LongBench v2 kini menunjukkan bahwa
+mekanisme tersebut material pada workload referensi: P95 reconstructed cost
+adalah 3,33 kali P50 pada kedua konfigurasi model. Temuan ini memperkuat alasan
+untuk membangun estimator dan guardrail, tetapi tidak menggantikan validasi demand
+atau telemetry produksi.
 
 Namun, bukti marketplace **belum membuktikan ASP salah menetapkan harga**. Harga
 yang sama pada banyak service hanya menunjukkan pola yang perlu diteliti; service
@@ -135,6 +142,80 @@ Inilah missing join yang hendak diisi Margn. Tanpa data tersebut, klaim
 profitabilitas service lain tidak boleh dibuat.
 
 ---
+
+### 4.4 Benchmark biaya offline, 23 Juli 2026
+
+Untuk menguji mekanisme Ide 4 tanpa API berbayar atau akses ke ASP lain, eksperimen
+offline dijalankan atas seluruh 503 row valid [LongBench v2](https://github.com/THUDM/LongBench)
+pada revision `2b48e494f2c7a2f0af81aae178e05c7e1dde0fe9`. Setiap row direkonstruksi
+sebagai satu order long-context multiple-choice, dihitung dengan tokenizer lokal,
+lalu dikenai rate card resmi GPT-5.4 nano dan mini per 23 Juli 2026.
+
+Eksperimen tidak memanggil model. Output diasumsikan hanya satu huruf dan tool,
+infrastruktur, payment fee, refund, serta baseline retry dianggap nol. Karena itu
+hasil berikut merupakan **lower-bound reconstructed cost**, bukan tagihan aktual.
+
+#### Hasil utama pada harga $0,01 dan target margin 30%
+
+| Model | Workload kompatibel | P50 cost | P95 cost | P95/P50 | Cash-loss rate | Gagal margin 30% | P95 price floor |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| GPT-5.4 nano | 442/503 | $0,016972 | $0,056540 | 3,33x | 62,4% | 71,5% | $0,080771 |
+| GPT-5.4 mini | 442/503 | $0,063644 | $0,212024 | 3,33x | 97,1% | 100,0% | $0,302892 |
+
+Sebanyak 61 row melewati context window 400.000 token. Row tersebut dicatat
+sebagai **incompatible**, bukan dipaksa masuk denominator atau disebut merugi.
+Hipotesis preregistered tentang variasi material terpenuhi pada kedua model dan
+tetap terpenuhi dalam sensitivity token count ±10%.
+
+#### Price sensitivity
+
+| Harga/order | Nano: gagal margin 30% | Mini: gagal margin 30% |
+| ---: | ---: | ---: |
+| $0,001 | 100,0% | 100,0% |
+| $0,005 | 90,3% | 100,0% |
+| $0,010 | 71,5% | 100,0% |
+| $0,050 | 17,0% | 64,3% |
+
+Tabel ini tidak berarti semua ASP harus menaikkan harga. Ia menunjukkan bahwa
+harga fixed yang aman bergantung pada model dan workload; angka marketplace baru
+dapat dinilai setelah kedua variabel itu diketahui.
+
+#### Guardrail trade-off pada harga $0,01
+
+| Model dan cap | Diterima dari 442 kompatibel | Ditolak | P95 cost accepted | Gagal margin 30% |
+| --- | ---: | ---: | ---: | ---: |
+| Nano, 32k | 116 (26,2%) | 326 | $0,005927 | 0,0% |
+| Nano, 128k | 312 (70,6%) | 130 | $0,023589 | 59,6% |
+| Mini, 32k | 116 (26,2%) | 326 | $0,022227 | 100,0% |
+| Mini, 128k | 312 (70,6%) | 130 | $0,088459 | 100,0% |
+
+Temuan yang paling actionable bukan “harga murah selalu salah”, melainkan:
+
+> Model choice, context cap, dan selling price harus diperiksa bersama sebelum
+> sebuah order diterima.
+
+Pada nano, cap 32k membuat seluruh workload yang diterima melewati target margin
+30% di harga $0,01, tetapi menolak 73,8% workload kompatibel. Jadi Margn sebaiknya
+menampilkan pilihan **allow / warn / reject / reprice / reroute** beserta dampak
+coverage, bukan hanya satu rekomendasi harga.
+
+Pola nano tetap material ketika tiap domain dikeluarkan bergantian: failure rate
+berada pada 68,2%–78,6%. Exact rerun menghasilkan hash identik pada seluruh tujuh
+artefak yang dihasilkan. Ini memperkuat validitas mekanisme, tetapi belum menjawab
+apakah traffic ASP nyata memiliki distribusi serupa atau operator bersedia memakai
+produk ini.
+
+Artefak reproduksi:
+
+- [Experiment report](../../research/fixed-price-benchmark/REPORT.md)
+- [Validation dan 11/11 fallacy scan](../../research/fixed-price-benchmark/VALIDATION.md)
+- [Config preregistered](../../research/fixed-price-benchmark/config.json)
+- [Per-call reconstructed costs](../../research/fixed-price-benchmark/results/per-call-costs.csv)
+- [Machine-readable summary](../../research/fixed-price-benchmark/results/summary.json)
+
+![Distribusi reconstructed cost](../../research/fixed-price-benchmark/results/figures/cost-distribution.svg)
+
+![Price coverage terhadap target margin 30%](../../research/fixed-price-benchmark/results/figures/price-coverage.svg)
 
 ## 5. Mengapa cost per call mudah salah
 
