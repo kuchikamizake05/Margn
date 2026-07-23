@@ -10,7 +10,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "validate:listing": "node scripts/validate-listing.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260723.1",
@@ -18,5 +19,8 @@
     "typescript": "7.0.2",
     "vitest": "4.1.10",
     "wrangler": "4.113.0"
+  },
+  "overrides": {
+    "sharp": "0.35.0"
   }
 }

@@ -144,6 +144,29 @@ describe("Margn API", () => {
     });
   });
 
+  it.each([
+    [200, true, "live - endpoint responded but did not ask for payment"],
+    [302, true, "reachable - endpoint responded with HTTP 302"],
+    [404, true, "suspicious - endpoint responded with HTTP 404"],
+    [503, false, "unhealthy - upstream responded with HTTP 503"]
+  ])(
+    "interprets upstream HTTP %i without inventing a quality score",
+    async (status, alive, interpretation) => {
+      const app = createApp({
+        snapshot,
+        fetchFn: vi.fn(async () => new Response(null, { status }))
+      });
+
+      const response = await app.fetch(post("/v1/verify", { agentId: "#3152" }));
+
+      await expect(response.json()).resolves.toMatchObject({
+        alive,
+        http_status: status,
+        interpretation
+      });
+    }
+  );
+
   it("enforces the probe timeout", async () => {
     const fetchFn = vi.fn(
       (_input: RequestInfo | URL, init?: RequestInit) =>
@@ -190,6 +213,45 @@ describe("Margn API", () => {
     });
   });
 
+  it("returns a transparent empty range when no priced service matches", async () => {
+    const app = createApp({ snapshot, fetchFn: vi.fn() });
+
+    const response = await app.fetch(
+      post("/v1/quote", { need: "nonexistent-zebra-capability" })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      matches: 0,
+      price_min: null,
+      price_median: null,
+      price_max: null,
+      note: "no matching priced services in snapshot; liveness is never cached"
+    });
+  });
+
+  it("calculates an even-sized market median", async () => {
+    const evenSnapshot: MarketSnapshot = {
+      ...snapshot,
+      services: [
+        ...snapshot.services,
+        {
+          ...snapshot.services[0]!,
+          agent_id: "7777",
+          fee: 0.15,
+          endpoint: "https://fourth.example.test/news"
+        }
+      ]
+    };
+    const app = createApp({ snapshot: evenSnapshot, fetchFn: vi.fn() });
+
+    const response = await app.fetch(post("/v1/quote", { need: "crypto news" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      matches: 4,
+      price_median: 0.1
+    });
+  });
+
   it("combines liveness with market price position", async () => {
     const fetchFn = vi.fn(async () => new Response(null, { status: 402 }));
     const app = createApp({ snapshot, fetchFn });
@@ -206,6 +268,191 @@ describe("Margn API", () => {
       market_matches: 3,
       market_median: 0.05,
       price_position: "11x above median"
+    });
+  });
+
+  it.each([
+    [0.05, "at median"],
+    [0.01, "5x below median"],
+    [0, "free; below median"]
+  ])("describes a proposed price of %s", async (price, pricePosition) => {
+    const app = createApp({
+      snapshot,
+      fetchFn: vi.fn(async () => new Response(null, { status: 402 }))
+    });
+
+    const response = await app.fetch(
+      post("/v1/check", { agentId: "3152", price })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      price_position: pricePosition
+    });
+  });
+
+  it("handles a zero-price market median", async () => {
+    const zeroSnapshot: MarketSnapshot = {
+      captured_at: snapshot.captured_at,
+      source: "zero-price test",
+      services: [
+        {
+          ...snapshot.services[0]!,
+          fee: 0,
+          service_name: "Free Ping",
+          search_text: "free ping"
+        }
+      ]
+    };
+    const app = createApp({
+      snapshot: zeroSnapshot,
+      fetchFn: vi.fn(async () => new Response(null, { status: 402 }))
+    });
+
+    const response = await app.fetch(
+      post("/v1/check", { agentId: "3152", price: 1 })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      market_median: 0,
+      price_position: "above a zero-price median"
+    });
+  });
+
+  it("handles a check with no comparable market service", async () => {
+    const unmatchedSnapshot: MarketSnapshot = {
+      ...snapshot,
+      services: [
+        {
+          ...snapshot.services[0]!,
+          service_name: "Invisible",
+          search_text: ""
+        }
+      ]
+    };
+    const app = createApp({
+      snapshot: unmatchedSnapshot,
+      fetchFn: vi.fn(async () => new Response(null, { status: 402 }))
+    });
+
+    const response = await app.fetch(
+      post("/v1/check", { agentId: "3152", price: 1 })
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      market_matches: 0,
+      market_median: null,
+      price_position: "no market comparison available"
+    });
+  });
+
+  it.each([
+    [{}, "INVALID_AGENT_ID"],
+    [{ agentId: [] }, "INVALID_AGENT_ID"],
+    [{ agentId: "bad id!" }, "INVALID_AGENT_ID"],
+    [{ agentId: "3152", price: -1 }, "INVALID_PRICE"],
+    [{ agentId: "3152", price: "0.55" }, "INVALID_PRICE"]
+  ])("validates check input %#", async (body, code) => {
+    const app = createApp({
+      snapshot,
+      fetchFn: vi.fn(async () => new Response(null, { status: 402 }))
+    });
+
+    const response = await app.fetch(post("/v1/check", body));
+
+    await expect(response.json()).resolves.toMatchObject({ error: { code } });
+  });
+
+  it.each([null, [], "text", 42])(
+    "rejects a non-object JSON body: %j",
+    async (body) => {
+      const app = createApp({ snapshot, fetchFn: vi.fn() });
+
+      const response = await app.fetch(post("/v1/quote", body));
+
+      await expect(response.json()).resolves.toMatchObject({
+        error: { code: "INVALID_BODY" }
+      });
+    }
+  );
+
+  it.each([
+    "https://user:secret@example.test/probe",
+    "https://localhost/probe",
+    "https://service.local/probe",
+    "https://service.internal/probe",
+    "https://10.0.0.1/probe",
+    "https://169.254.1.1/probe",
+    "https://172.16.1.1/probe",
+    "https://192.168.1.1/probe",
+    "https://224.0.0.1/probe",
+    "https://[::1]/probe",
+    "not a URL"
+  ])("blocks unsafe marketplace endpoint %s", async (endpoint) => {
+    const unsafeSnapshot: MarketSnapshot = {
+      ...snapshot,
+      services: [{ ...snapshot.services[0]!, endpoint }]
+    };
+    const fetchFn = vi.fn();
+    const app = createApp({ snapshot: unsafeSnapshot, fetchFn });
+
+    const response = await app.fetch(post("/v1/verify", { agentId: 3152 }));
+
+    expect(fetchFn).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "UNSAFE_ENDPOINT" }
+    });
+  });
+
+  it("permits a public HTTPS IP endpoint from the immutable snapshot", async () => {
+    const publicIpSnapshot: MarketSnapshot = {
+      ...snapshot,
+      services: [
+        {
+          ...snapshot.services[0]!,
+          endpoint: "https://8.8.8.8/probe"
+        }
+      ]
+    };
+    const fetchFn = vi.fn(async () => new Response(null, { status: 402 }));
+    const app = createApp({ snapshot: publicIpSnapshot, fetchFn });
+
+    await app.fetch(post("/v1/verify", { agentId: 3152 }));
+
+    expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
+  it("returns a clean error for an agent without an A2MCP endpoint", async () => {
+    const noEndpointSnapshot: MarketSnapshot = {
+      ...snapshot,
+      services: [
+        {
+          ...snapshot.services[0]!,
+          service_type: "A2A",
+          endpoint: null
+        }
+      ]
+    };
+    const app = createApp({ snapshot: noEndpointSnapshot, fetchFn: vi.fn() });
+
+    const response = await app.fetch(post("/v1/verify", { agentId: "3152" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "AGENT_NOT_FOUND" }
+    });
+  });
+
+  it("contains unexpected internal failures in a JSON envelope", async () => {
+    const brokenSnapshot = {
+      ...snapshot,
+      services: null
+    } as unknown as MarketSnapshot;
+    const app = createApp({ snapshot: brokenSnapshot, fetchFn: vi.fn() });
+
+    const response = await app.fetch(post("/v1/quote", { need: "crypto news" }));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "INTERNAL_ERROR" }
     });
   });
 
