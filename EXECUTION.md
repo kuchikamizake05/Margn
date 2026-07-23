@@ -153,9 +153,14 @@ POST https://<domain>/v1/check    {"agentId": "3152", "price": 0.55}
 
 | Join | Butuh apa | Memblokir apa |
 | --- | --- | --- |
-| **J1** | Kontrak §2.1 + §2.2 disepakati | Semua pekerjaan |
-| **J2** | URL final (Sako) + avatar CDN (Sako) | Pendaftaran ASP oleh Diaz |
+| **J1** ✅ | Kontrak §2.1 + §2.2 disepakati | Semua pekerjaan |
+| **J2** | Deploy oleh Diaz (D3) → URL final + probe luar oleh Sako (S3) | Pendaftaran ASP (D4) |
 | **J3** | Endpoint live + footage (Diaz) | Rekaman demo |
+
+Sejak deploy pindah ke Diaz, **J2 bukan lagi serah-terima antar-orang** — Diaz
+bisa jalan sampai `activate` tanpa menunggu Sako. Probe luar S3 sebaiknya tetap
+dilakukan sebelum `create`, tapi kalau Sako tidak tersedia, satu probe manual
+dari HP (bukan dari laptop yang sama) sudah cukup untuk menutup risiko utamanya.
 
 ---
 
@@ -193,7 +198,34 @@ tabel 8-dari-8 berubah — demo kamu bohong tanpa kamu sadari.
       bergeser, **perbaiki angkanya di `MARGN-VERIFIED.md`**, jangan biarkan
 - [ ] catat versi CLI dan timestamp di `docs/demo/raw/README.md`
 
-### D3. Daftarkan ASP · setelah J2 · ~1 jam
+### D3. Deploy endpoint · **pindah dari Sako** · ~20 menit
+
+Deploy semula masuk S1. Dipindah ke Diaz karena ini soal kepemilikan akun,
+bukan pembagian kerja: URL Workers berbentuk `margn.<subdomain-akun>.workers.dev`,
+subdomain itu milik akun Cloudflare yang dipakai deploy, dan URL-nya **permanen
+on-chain**. Kalau di-deploy dari akun Sako, identitas ASP menggantung selamanya
+pada akun orang lain — dan memperbaikinya butuh `agent update` yang memicu QA
+ulang. Endpoint permanen harus satu atap dengan wallet dan identitas ASP.
+
+Sekaligus menghapus satu serah-terima dari jalur kritis: kode Sako sudah
+ter-commit, jadi kamu tidak perlu menunggu siapa pun.
+
+```bash
+# akun Cloudflare gratis, lalu dari endpoint/
+npx wrangler login
+npx wrangler deploy
+```
+
+- [ ] **Kunci nama worker sebelum deploy.** `wrangler.jsonc` sekarang `name: "margn"`
+      — nama itu jadi bagian URL permanen. Mau ganti? Ganti sekarang.
+- [ ] **Jangan beli domain.** Subdomain platform terbukti lolos review
+      (`signalforge-ai.onrender.com`, `onchainlens.dpdns.org` sudah approved).
+      Membeli domain menaruh propagasi DNS di jalur kritis malam ini demi
+      skenario pindah hosting yang mungkin tidak pernah terjadi.
+- [ ] Catat URL final, isikan ke tiga tempat `<final-domain>` di `docs/listing.md`
+- [ ] Kabari Sako supaya S3 bisa jalan
+
+### D4. Daftarkan ASP · setelah J2 · ~1 jam
 
 Urutan pasti, jangan diloncat:
 
@@ -224,7 +256,7 @@ onchainos agent activate --agent-id <ID> --preferred-language en-US
       `docs/demo/proof/`. Ini bukti kamu tidak terlambat kalau antrean macet.
 - [ ] **Setelah approved, jangan pernah jalankan `agent update`.**
 
-### D4. Rekam demo 90 detik · 26 Juli · ~3 jam
+### D5. Rekam demo 90 detik · 26 Juli · ~3 jam
 
 Ikuti §5 `MARGN-VERIFIED.md`, dengan dua koreksi:
 
@@ -246,56 +278,61 @@ Ikuti §5 `MARGN-VERIFIED.md`, dengan dua koreksi:
 
 Tidak menyentuh wallet, CLI, atau data Diaz. Bisa mulai sekarang juga.
 
-### S1. Endpoint · ~4 jam
+### S1. Endpoint · ~4 jam · ✅ **SELESAI**
 
-Tanpa x402, tanpa MCP, tanpa database, tanpa auth, tanpa state. Satu file cukup.
+Tanpa x402, tanpa MCP, tanpa database, tanpa auth, tanpa state.
 
-- [ ] `endpoint/` — tiga route POST sesuai kontrak §2.2
-- [ ] `endpoint/data/market-snapshot.json` — mulai dengan 5 baris fixture, ganti
-      saat file asli Diaz masuk
-- [ ] `verify` = probe HTTP nyata, POST, timeout 5 detik, tanpa cache
-- [ ] `quote` = baca snapshot, cocokkan keyword, kembalikan min/median/maks
-- [ ] `check` = komposisi keduanya + `price_position`
-- [ ] tangani `feedback_rate`/`security_rate` bernilai `null` — 75% pasar begitu
+- [x] `endpoint/` — tiga route POST sesuai kontrak §2.2
+- [x] `endpoint/data/market-snapshot.json` — **data asli**, bukan fixture:
+      2.439 layanan · 973 agent · `captured_at 19:55:23`
+- [x] `verify` = probe POST nyata, timeout 5 detik, `cache-control: no-store`
+- [x] `quote` = tokenisasi + pencocokan, kembalikan min/median/maks
+- [x] `check` = komposisi keduanya + `price_position`
+- [x] `feedback_rate`/`security_rate` bernilai `null` ditangani
 
-**Host:** Cloudflare Workers (gratis, URL stabil, cold start cepat).
+Terverifikasi dengan menjalankannya: **46 test lulus**, `tsc --noEmit` bersih,
+build 2.331 KiB → **gzip 417 KiB** (limit Workers free 3 MiB, jadi aman).
+Catch-all mengembalikan `INTERNAL_ERROR` sebagai JSON 200 — tidak pernah 500.
 
-**Domain:** beli domain murah (~$12) dan arahkan ke Worker. Alasannya bukan
-review — subdomain platform terbukti lolos — tapi karena **URL permanen
-on-chain**. Kalau nanti pindah hosting, cukup ubah DNS, bukan transaksi update
-yang memicu QA ulang. Ini satu-satunya bagian yang jangan dihemat.
+**Host:** Cloudflare Workers, **di-deploy oleh Diaz** (lihat D3) — akun harus
+satu atap dengan wallet karena URL permanen on-chain.
 
-Satu test yang harus ada: `verify` terhadap endpoint mati → tetap balas JSON
-bersih, bukan 500, bukan menggantung.
+**Domain: tidak dibeli.** Pakai `margn.<subdomain-akun>.workers.dev`.
 
-### S2. Aset listing · ~2 jam
+**Batas desain yang harus disadari:** `verify()` hanya memprobe endpoint yang ada
+di snapshot. Ini pilihan keamanan yang benar — tanpa itu Margn jadi alat SSRF
+gratis. Konsekuensinya: agent yang mendaftar setelah snapshot terakhir
+mengembalikan `AGENT_NOT_FOUND`, dan Margn tidak bisa memverifikasi dirinya
+sendiri. Pasar tumbuh ~5 agent per 20 menit. Mitigasi cukup dengan refresh
+snapshot di hari demo dan hari submission — tidak perlu ubah kode.
 
-Ini `severity: block` dan paling sering menggagalkan orang karena dikira sepele.
+### S2. Aset listing · ~2 jam · ✅ **SELESAI**
 
-- [ ] `assets/avatar.png` — **file gambar rasio 1:1**. Bukan link. Diaz akan
-      mengunggahnya via `agent upload --file`.
-- [ ] `docs/listing.md` berisi teks final:
-  - nama 3–25 karakter, tanpa kata "test", tanpa nama tokoh publik
-  - deskripsi agent ≤500 karakter
-  - untuk tiap service: deskripsi **dua bagian di baris terpisah** —
-    ① fungsi + untuk siapa, ② apa yang harus disediakan pemanggil.
-    Masing-masing ≤200 karakter.
-  - **Dilarang:** contoh prompt, link GitHub, detail tech-stack, disclaimer
-- [ ] hitung karakternya, jangan dikira-kira
+- [x] `assets/avatar.png` — **1254×1254, rasio 1:1**
+- [x] `docs/listing.md` — nama `Margn` (5/25), deskripsi 258/500, tiga deskripsi
+      service dua-baris: 126/32 · 101/52 · 100/51 (limit 200)
+- [x] `scripts/validate-listing.mjs` — dibuat Sako untuk menggantikan
+      `validate-listing` yang ternyata tidak ada di CLI v4.3.0. Lolos.
 
-Tulis yang membosankan dan patuh. Listing pintar mengundang pertanyaan; listing
-membosankan lolos.
+Tersisa: tiga `<final-domain>` di `docs/listing.md` diisi setelah D3.
 
-### S3. Pengerasan sebelum J2 · ~1 jam
+### S3. Pengerasan · **setelah Diaz deploy (D3)** · ~1 jam
 
-Kalau reviewer memprobe endpoint dan kena cold start, timeout, atau 500, itu
-penolakan yang kita sebabkan sendiri.
+Edge case sudah tertutup 46 test lokal. Yang tersisa butuh URL hidup:
 
-- [ ] probe ketiga endpoint dari jaringan luar, berkali-kali, sampai bosan
+- [ ] probe ketiga endpoint **dari jaringan luar**, berkali-kali, sampai bosan
 - [ ] uji dengan `agentId` tidak ada, `need` kosong, body bukan JSON
 - [ ] uji `verify` terhadap endpoint yang sengaja lambat → harus putus di 5 detik
-- [ ] pastikan tidak ada kondisi apa pun yang menghasilkan 500
-- [ ] baru kabari Diaz: **"URL final, siap didaftarkan"**
+- [ ] kabari Diaz: **"URL sehat, siap didaftarkan"**
+
+### S4. Dua utang dari review · tidak memblokir siapa pun
+
+- [ ] **`npm ci` gagal** — lockfile tidak sinkron, empat paket `@emnapi` hilang.
+      Checkout bersih tidak bisa install; juri yang mencoba akan tersandung.
+      Perbaikannya sudah ada di working tree (hasil `npm install`), tinggal commit.
+- [ ] siapkan refresh `market-snapshot.json` untuk hari demo dan hari submission —
+      jalankan `scan.py` lalu `build-snapshot.mjs`. Menukar file JSON di balik URL
+      tidak menyentuh registry sama sekali.
 
 ---
 
@@ -303,12 +340,19 @@ penolakan yang kita sebabkan sendiri.
 
 | Hari | Diaz | Sako | Titik temu |
 | --- | --- | --- | --- |
-| **23 Jul** | D1 selamatkan scan → D2 rekam footage | S1 endpoint + S2 aset | J1 pagi ini |
-| **23 Jul malam** | **D3 daftar + activate** | S3 pengerasan | **J2 — antrean dimasuki hari ini** |
-| **24 Jul** | susun naskah demo, cek ulang angka | perbaikan di balik URL yang sama | — |
+| **23 Jul** | ✅ D1 scan ter-commit | ✅ S1 endpoint + ✅ S2 aset | ✅ J1 |
+| **23 Jul malam** | **D3 deploy → D4 create + activate** · D2 rekam footage | S3 setelah URL hidup | **J2 — antrean dimasuki hari ini** |
+| **24 Jul** | susun naskah demo, cek ulang angka | S4 utang review | — |
 | **25 Jul** | **buffer** — kalau ditolak, perbaiki dan daftar ulang (`uniqueness: multiple`) | buffer | — |
-| **26 Jul** | D4 rekam + edit demo, posting X `#OKXAI` | bantu edit | J3 |
+| **26 Jul** | D5 rekam + edit demo, posting X `#OKXAI` | refresh snapshot, bantu edit | J3 |
 | **27 Jul** | submit Google Form **pagi hari** | verifikasi akhir | — |
+
+**Jalur kritis malam ini, tanpa satu pun serah-terima:**
+
+```
+wrangler deploy → catat URL → isi listing.md → probe dari luar
+→ agent upload avatar → agent create → agent activate
+```
 
 Kamu punya satu pagi ekstra (deadline = 28 Juli 06:59 WIB). **Pakai untuk buffer,
 bukan untuk fitur.**
