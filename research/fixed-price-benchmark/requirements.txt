@@ -1,3 +1,0 @@
-ijson==3.4.0.post0
-requests==2.34.2
-tiktoken==0.12.0
