@@ -1,0 +1,21 @@
+source: agents-2026-07-23T1955.json
+unique endpoints: 1585, probing 300 (seed=7)
+
+STATUS DISTRIBUTION:
+  402                       206   68.7%
+  404                        25    8.3%
+  405                        23    7.7%
+  200                        20    6.7%
+  403                         9    3.0%
+  ERR:TimeoutError            8    2.7%
+  406                         4    1.3%
+  400                         2    0.7%
+  ERR:URLError                2    0.7%
+  422                         1    0.3%
+
+402 (healthy, LOWER BOUND): 206/300 = 68.7%
+unreachable:                10/300 = 3.3%
+
+onlineStatus vs reachability:
+  onlineStatus=1: n=297  402=203 (68%)  any-response=287 (97%)
+  onlineStatus=0: n=  3  402=  3 (100%)  any-response=3 (100%)

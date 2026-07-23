@@ -1,0 +1,46 @@
+  !! get token price and market data: Wallet API error (code=4001): SearchApi.taskSearchAgentPost failed
+buyer agent: #7520
+
+need                                         n     top1$  cheapest$  rank_cheap   best_value
+-----------------------------------------------------------------------------------------------
+get latest crypto news headlines            10      0.01      0.005           6     #2013 r5
+check a wallet balance on ethereum          10         0          0           1    #5634 r10
+audit a smart contract for vulnerabilities  10       0.5          0           9    #5634 r10
+generate an image from a text prompt         9      0.02       0.01           7     #2543 r9
+swap tokens on a dex                        10      0.01      0.005           5     #4759 r5
+translate text to another language          10      0.01          0           3     #4726 r7
+analyze a crypto portfolio                  10      0.05          0          10     #2118 r5
+
+
+=== where the value-best option ranks vs a worse option above it ===
+
+get latest crypto news headlines
+  best-by-value : #2013 rank  5  $0.01       sec=5.0 fb=100.0 sold=1670
+  ranked ABOVE  : #3152 rank  3  $0.55       sec=2.0 fb=0.0 sold=1   -> 55x pricier
+
+check a wallet balance on ethereum
+  best-by-value : #5634 rank 10  $0          sec=5.0 fb=100.0 sold=1
+  ranked ABOVE  : #3597 rank  2  $0.8        sec=None fb=None sold=0   -> infx pricier
+
+audit a smart contract for vulnerabilities
+  best-by-value : #5634 rank 10  $0          sec=5.0 fb=100.0 sold=1
+  ranked ABOVE  : #3601 rank  8  $1          sec=None fb=None sold=0   -> infx pricier
+
+generate an image from a text prompt
+  best-by-value : #2543 rank  9  $0.19       sec=5.0 fb=100.0 sold=9
+  ranked ABOVE  : #5331 rank  6  $0.5        sec=4.88 fb=100.0 sold=64   -> 3x pricier
+
+swap tokens on a dex
+  best-by-value : #4759 rank  5  $0.005      sec=5.0 fb=100.0 sold=37
+  ranked ABOVE  : #5315 rank  4  $0.2        sec=None fb=None sold=2   -> 40x pricier
+
+translate text to another language
+  best-by-value : #4726 rank  7  $0.005      sec=5.0 fb=100.0 sold=4
+  ranked ABOVE  : #3581 rank  5  $0.1        sec=None fb=None sold=0   -> 20x pricier
+
+analyze a crypto portfolio
+  best-by-value : #2118 rank  5  $0.001      sec=4.75 fb=100.0 sold=221
+  ranked ABOVE  : #3597 rank  2  $0.8        sec=None fb=None sold=0   -> 800x pricier
+
+
+RANKING FAILURES: 7/7 needs

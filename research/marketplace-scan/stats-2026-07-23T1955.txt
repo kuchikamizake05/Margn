@@ -1,0 +1,38 @@
+SOURCE: agents-2026-07-23T1955.json  scanned_at=2026-07-23T19:55:23
+UNIQUE AGENTS: 1006
+SERVICES: 2439
+
+OFFLINE: 218/1006 = 21.7%
+ZERO SALES: 554/1006 = 55.1%
+TOTAL SALES: 27971
+
+TOP SELLERS:
+  PixelBrief                             10217   36.5%
+  ScoutGate                               1847    6.6%
+  CoinAnk OpenAPI                         1670    6.0%
+  Onchain Data Explorer                   1632    5.8%
+  CoinWM Open API                         1566    5.6%
+  记忆映画                                    1555    5.6%
+  Quiver                                   966    3.5%
+  Lumora Stock Data Hub                    636    2.3%
+
+feedbackRate: present 257/1006 (26%), null 749
+  min=0.0 max=100.0  below-top: 40  at-top: 217
+
+securityRate: present 258/1006 (26%), null 748
+  min=1.0 max=5.0  below-top: 83  at-top: 175
+
+CATEGORIES:
+  Software services               669   66.5%
+  Finance                         156   15.5%
+  Lifestyle                       102   10.1%
+  Art creation                     67    6.7%
+  Others                            8    0.8%
+  WORLD_CUP                         5    0.5%
+
+PRICES: n=2273, free=169
+  min=1e-06 max=5000 spread=5,000,000,000x
+  most common: [(0.01, 320), (0.1, 289), (1.0, 278), (0.05, 157), (0.5, 156)]
+
+SERVICE TYPES: {'A2A': 766, 'A2MCP': 1673}
+UNIQUE ENDPOINTS: 1585
