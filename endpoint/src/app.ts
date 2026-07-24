@@ -39,6 +39,11 @@ interface VerifyResult {
   interpretation: string;
   latency_ms: number;
   probed_at: string;
+  platform_scores: {
+    sold_count: number;
+    feedback_rate: number | null;
+    security_rate: number | null;
+  };
   error?: {
     code: string;
     message: string;
@@ -103,19 +108,35 @@ const LANDING_HTML = `<!doctype html>
   .card h2 { font-size: .82rem; text-transform: uppercase; letter-spacing: .08em;
              color: #9aa3b8; margin: 0 0 .1rem; }
   .card p { margin: 0 0 .8rem; color: #8b93a7; font-size: .85rem; }
-  .row { display: flex; gap: .5rem; }
-  input { flex: 1; min-width: 0; background: #0d0f14; border: 1px solid #2d3446;
+  label { display: block; font-size: .78rem; color: #9aa3b8; margin: 0 0 .3rem; }
+  .field { flex: 1; min-width: 0; }
+  .row { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; }
+  input { width: 100%; min-width: 0; background: #0d0f14; border: 1px solid #2d3446;
           color: #e7e9ee; border-radius: 8px; padding: .55rem .7rem; font: inherit; }
   input:focus { outline: 2px solid #5b8cff; outline-offset: 0; border-color: transparent; }
   button { background: #5b8cff; color: #06122e; border: 0; border-radius: 8px;
            padding: .55rem 1rem; font: inherit; font-weight: 600; cursor: pointer; }
   button:hover { background: #77a0ff; }
   button:disabled { opacity: .55; cursor: wait; }
+  .result { margin-top: .9rem; }
+  .badge { display: inline-block; font-size: .8rem; font-weight: 600;
+           padding: .3rem .7rem; border-radius: 999px; }
+  .badge.ok { background: #12351f; color: #6ee7a0; }
+  .badge.warn { background: #3a2f0e; color: #f4c860; }
+  .badge.bad { background: #3a1417; color: #f78a90; }
+  .badge.info { background: #1c2740; color: #8fb0ff; }
+  details { margin-top: .7rem; }
+  summary { cursor: pointer; color: #8b93a7; font-size: .8rem; }
   pre { background: #0b0d12; border: 1px solid #232838; border-radius: 8px;
-        padding: .8rem; margin: .8rem 0 0; overflow-x: auto; font-size: .8rem;
+        padding: .8rem; margin: .6rem 0 0; overflow-x: auto; font-size: .8rem;
         color: #c6ccdc; white-space: pre-wrap; word-break: break-word; }
   footer { color: #6b7285; font-size: .8rem; margin-top: 1.5rem; text-align: center; }
+  code { color: #b8c1d9; }
   a { color: #77a0ff; }
+  @media (max-width: 460px) {
+    .row { flex-direction: column; align-items: stretch; }
+    button { width: 100%; }
+  }
 </style>
 </head>
 <body>
@@ -127,60 +148,87 @@ const LANDING_HTML = `<!doctype html>
     <h2>verify</h2>
     <p>Live liveness probe of an agent's endpoint. Never cached.</p>
     <div class="row">
-      <input id="verify-in" value="5053" aria-label="agent id" />
+      <div class="field">
+        <label for="verify-id">Agent ID</label>
+        <input id="verify-id" value="1500" />
+      </div>
       <button data-run="verify">Probe</button>
     </div>
-    <pre id="verify-out" hidden></pre>
+    <div class="result" id="verify-out"></div>
   </section>
 
   <section class="card">
     <h2>quote</h2>
     <p>Market price range for a need, from the snapshot.</p>
     <div class="row">
-      <input id="quote-in" value="crypto news" aria-label="need" />
+      <div class="field">
+        <label for="quote-need">Need</label>
+        <input id="quote-need" value="crypto news" />
+      </div>
       <button data-run="quote">Quote</button>
     </div>
-    <pre id="quote-out" hidden></pre>
+    <div class="result" id="quote-out"></div>
   </section>
 
   <section class="card">
     <h2>check</h2>
     <p>Liveness + where a price sits vs the market median.</p>
     <div class="row">
-      <input id="check-id" value="5053" aria-label="agent id" style="flex:2" />
-      <input id="check-price" value="0.55" aria-label="price" inputmode="decimal" style="flex:1" />
+      <div class="field">
+        <label for="check-id">Agent ID</label>
+        <input id="check-id" value="1500" />
+      </div>
+      <div class="field">
+        <label for="check-price">Price</label>
+        <input id="check-price" value="0.1" inputmode="decimal" />
+      </div>
       <button data-run="check">Check</button>
     </div>
-    <pre id="check-out" hidden></pre>
+    <div class="result" id="check-out"></div>
   </section>
 
   <footer>Machine interface: <code>POST /v1/verify · /v1/quote · /v1/check</code></footer>
 </main>
 <script>
+  const val = (id) => document.getElementById(id).value.trim();
   const bodyFor = {
-    verify: () => ({ agentId: document.getElementById('verify-in').value.trim() }),
-    quote: () => ({ need: document.getElementById('quote-in').value.trim() }),
-    check: () => ({
-      agentId: document.getElementById('check-id').value.trim(),
-      price: Number(document.getElementById('check-price').value)
-    })
+    verify: () => ({ agentId: val('verify-id') }),
+    quote: () => ({ need: val('quote-need') }),
+    check: () => ({ agentId: val('check-id'), price: Number(val('check-price')) })
   };
+  // Turn a verify/check response into a plain-language status badge; the raw
+  // JSON always stays available in a details panel.
+  function badgeFor(data) {
+    if (data.error) return ['info', data.error.code];
+    if (typeof data.alive !== 'boolean') return null;
+    if (!data.alive) return ['bad', 'Unreachable'];
+    if (/suspicious/i.test(data.interpretation || '')) return ['warn', 'Suspicious'];
+    return ['ok', 'Healthy'];
+  }
   document.querySelectorAll('button[data-run]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const route = btn.dataset.run;
       const out = document.getElementById(route + '-out');
       btn.disabled = true;
-      out.hidden = false;
-      out.textContent = 'Running…';
+      out.innerHTML = '<span class="badge info">Running…</span>';
       try {
         const res = await fetch('/v1/' + route, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(bodyFor[route]())
         });
-        out.textContent = JSON.stringify(await res.json(), null, 2);
+        const data = await res.json();
+        const badge = badgeFor(data);
+        const badgeHtml = badge
+          ? '<span class="badge ' + badge[0] + '">' + badge[1] + '</span>'
+          : '';
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(data, null, 2);
+        out.innerHTML = badgeHtml +
+          '<details' + (badge ? '' : ' open') + '><summary>Raw response</summary></details>';
+        out.querySelector('details').appendChild(pre);
       } catch (err) {
-        out.textContent = 'Request failed: ' + err;
+        out.innerHTML = '<span class="badge bad">Request failed</span>';
       } finally {
         btn.disabled = false;
       }
@@ -237,11 +285,43 @@ function normalizeAgentId(value: unknown): string | null {
   return /^[A-Za-z0-9_-]{1,64}$/.test(normalized) ? normalized : null;
 }
 
-function selectProbeTarget(
+interface ServiceSummary {
+  service_name: string;
+  service_type: string;
+  fee: number;
+}
+
+type ServiceResolution =
+  | { ok: true; service: MarketService }
+  | { ok: false; payload: Record<string, unknown> };
+
+function serviceSummary(service: MarketService): ServiceSummary {
+  return {
+    service_name: service.service_name,
+    service_type: service.service_type,
+    fee: service.fee
+  };
+}
+
+// Some agents expose 80+ services; dumping all of them is honest but noisy, so
+// cap the listed choices and report the true total alongside.
+const MAX_LISTED_SERVICES = 15;
+
+function serviceChoices(candidates: MarketService[]): {
+  services: ServiceSummary[];
+  services_total: number;
+} {
+  return {
+    services: candidates.slice(0, MAX_LISTED_SERVICES).map(serviceSummary),
+    services_total: candidates.length
+  };
+}
+
+function probeableServices(
   snapshot: MarketSnapshot,
   agentId: string
-): MarketService | null {
-  const candidates = snapshot.services
+): MarketService[] {
+  return snapshot.services
     .filter(
       (service) =>
         service.agent_id === agentId &&
@@ -253,8 +333,70 @@ function selectProbeTarget(
         left.fee - right.fee ||
         left.service_name.localeCompare(right.service_name)
     );
+}
 
-  return candidates[0] ?? null;
+// Never guess which service to probe. A single-service agent resolves with no
+// friction; a multi-service agent (239 in the snapshot) requires an explicit
+// serviceName, otherwise we return AMBIGUOUS_SERVICE with the choices so the
+// buyer picks — probing the wrong endpoint would be a silent correctness bug.
+function resolveService(
+  snapshot: MarketSnapshot,
+  agentId: string,
+  serviceName: string | null
+): ServiceResolution {
+  const candidates = probeableServices(snapshot, agentId);
+  if (candidates.length === 0) {
+    return {
+      ok: false,
+      payload: error(
+        "AGENT_NOT_FOUND",
+        "Agent has no probeable A2MCP endpoint in the current snapshot."
+      )
+    };
+  }
+
+  if (serviceName) {
+    const wanted = serviceName.trim().toLocaleLowerCase("en-US");
+    const matched = candidates.filter(
+      (service) => service.service_name.toLocaleLowerCase("en-US") === wanted
+    );
+    if (matched[0]) {
+      return { ok: true, service: matched[0] };
+    }
+    return {
+      ok: false,
+      payload: {
+        ...error(
+          "SERVICE_NOT_FOUND",
+          "This agent has no probeable service with that name; pick one below."
+        ),
+        ...serviceChoices(candidates)
+      }
+    };
+  }
+
+  if (candidates.length > 1) {
+    return {
+      ok: false,
+      payload: {
+        ...error(
+          "AMBIGUOUS_SERVICE",
+          "This agent exposes multiple services; pass serviceName to pick one."
+        ),
+        ...serviceChoices(candidates)
+      }
+    };
+  }
+
+  return { ok: true, service: candidates[0]! };
+}
+
+function normalizeServiceName(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed.slice(0, 128);
 }
 
 function isSafePublicHttpsEndpoint(endpoint: string): boolean {
@@ -352,19 +494,30 @@ function baseVerifyResult(
     service_name: service.service_name,
     endpoint: service.endpoint,
     latency_ms: Math.max(0, finishedAt - startedAt),
-    probed_at: new Date(finishedAt).toISOString()
+    probed_at: new Date(finishedAt).toISOString(),
+    platform_scores: {
+      sold_count: service.sold_count,
+      feedback_rate: service.feedback_rate,
+      security_rate: service.security_rate
+    }
   };
 }
 
 async function verifyAgent(
   snapshot: MarketSnapshot,
   agentId: string,
+  serviceName: string | null,
   fetchFn: FetchLike,
   now: () => number,
   timeoutMs: number
-): Promise<VerifyResult | { error: { code: string; message: string } }> {
-  const service = selectProbeTarget(snapshot, agentId);
-  if (!service || !service.endpoint) {
+): Promise<VerifyResult | Record<string, unknown>> {
+  const resolved = resolveService(snapshot, agentId, serviceName);
+  if (!resolved.ok) {
+    return resolved.payload;
+  }
+  const service = resolved.service;
+  const endpoint = service.endpoint;
+  if (!endpoint) {
     return error(
       "AGENT_NOT_FOUND",
       "Agent has no probeable A2MCP endpoint in the current snapshot."
@@ -372,7 +525,7 @@ async function verifyAgent(
   }
 
   const startedAt = now();
-  if (!isSafePublicHttpsEndpoint(service.endpoint)) {
+  if (!isSafePublicHttpsEndpoint(endpoint)) {
     return {
       ...baseVerifyResult(service, now, startedAt),
       alive: false,
@@ -393,7 +546,7 @@ async function verifyAgent(
   }, timeoutMs);
 
   try {
-    const response = await fetchFn(service.endpoint, {
+    const response = await fetchFn(endpoint, {
       method: "POST",
       headers: {
         accept: "application/json",
@@ -603,9 +756,11 @@ export function createApp(dependencies: AppDependencies): {
           );
         }
 
+        const serviceName = normalizeServiceName(parsed.value.serviceName);
         const verification = await verifyAgent(
           snapshot,
           agentId,
+          serviceName,
           fetchFn,
           now,
           timeoutMs
@@ -621,8 +776,16 @@ export function createApp(dependencies: AppDependencies): {
           );
         }
 
-        const service = selectProbeTarget(snapshot, agentId);
-        const quote = buildQuote(snapshot, service?.service_name ?? "");
+        // Compare against the buyer's stated need when given; otherwise fall
+        // back to the resolved service name so check still works standalone.
+        const need =
+          typeof parsed.value.need === "string" ? parsed.value.need.trim() : "";
+        let quoteNeed = need;
+        if (!quoteNeed) {
+          const resolved = resolveService(snapshot, agentId, serviceName);
+          quoteNeed = resolved.ok ? resolved.service.service_name : "";
+        }
+        const quote = buildQuote(snapshot, quoteNeed);
         return json({
           ...verification,
           price,

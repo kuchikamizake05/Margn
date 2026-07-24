@@ -561,4 +561,104 @@ describe("Margn API", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(await response.text()).toContain("<title>Margn");
   });
+
+  it("exposes the platform's own scores on verify", async () => {
+    const fetchFn = vi.fn(async () => new Response("", { status: 402 }));
+    const app = createApp({ snapshot, fetchFn });
+
+    const response = await app.fetch(post("/v1/verify", { agentId: "2013" }));
+    const body = (await response.json()) as Record<string, any>;
+
+    expect(body.platform_scores).toEqual({
+      sold_count: 1670,
+      feedback_rate: 100,
+      security_rate: 5
+    });
+  });
+
+  describe("multi-service agents", () => {
+    const multi: MarketSnapshot = {
+      captured_at: "2026-07-23T12:55:23Z",
+      source: "test fixture",
+      services: [
+        {
+          agent_id: "3152",
+          agent_name: "Example",
+          service_name: "Crypto News Feed",
+          service_type: "A2MCP",
+          fee: 0.55,
+          endpoint: "https://a.example.test/api",
+          sold_count: 3,
+          feedback_rate: 90,
+          security_rate: 4,
+          search_text: "crypto news feed"
+        },
+        {
+          agent_id: "3152",
+          agent_name: "Example",
+          service_name: "Weather Now",
+          service_type: "A2MCP",
+          fee: 0.02,
+          endpoint: "https://b.example.test/api",
+          sold_count: 1,
+          feedback_rate: 100,
+          security_rate: 5,
+          search_text: "weather forecast now"
+        }
+      ]
+    };
+
+    it("refuses to guess and returns AMBIGUOUS_SERVICE with choices", async () => {
+      const fetchFn = vi.fn();
+      const app = createApp({ snapshot: multi, fetchFn });
+
+      const response = await app.fetch(post("/v1/verify", { agentId: "3152" }));
+      const body = (await response.json()) as Record<string, any>;
+
+      expect(fetchFn).not.toHaveBeenCalled();
+      expect(body.error.code).toBe("AMBIGUOUS_SERVICE");
+      expect(body.services).toHaveLength(2);
+    });
+
+    it("probes the named service when serviceName is given", async () => {
+      const fetchFn = vi.fn(async () => new Response("", { status: 402 }));
+      const app = createApp({ snapshot: multi, fetchFn });
+
+      const response = await app.fetch(
+        post("/v1/verify", { agentId: "3152", serviceName: "Weather Now" })
+      );
+      const body = (await response.json()) as Record<string, any>;
+
+      expect(body.service_name).toBe("Weather Now");
+      expect(fetchFn).toHaveBeenCalledWith(
+        "https://b.example.test/api",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+
+    it("returns SERVICE_NOT_FOUND for a name the agent does not expose", async () => {
+      const app = createApp({ snapshot: multi, fetchFn: vi.fn() });
+
+      const response = await app.fetch(
+        post("/v1/verify", { agentId: "3152", serviceName: "Nope" })
+      );
+      const body = (await response.json()) as Record<string, any>;
+
+      expect(body.error.code).toBe("SERVICE_NOT_FOUND");
+    });
+  });
+
+  it("check compares against the buyer's stated need", async () => {
+    const fetchFn = vi.fn(async () => new Response("", { status: 402 }));
+    const app = createApp({ snapshot, fetchFn });
+
+    const response = await app.fetch(
+      post("/v1/check", { agentId: "3152", price: 0.55, need: "crypto news" })
+    );
+    const body = (await response.json()) as Record<string, any>;
+
+    // "crypto news" matches all three priced news services, not just #3152's own.
+    expect(body.market_matches).toBeGreaterThanOrEqual(2);
+    expect(typeof body.price_position).toBe("string");
+  });
 });
