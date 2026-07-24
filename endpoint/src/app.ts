@@ -564,8 +564,12 @@ export function createApp(dependencies: AppDependencies): {
     async fetch(request: Request): Promise<Response> {
       try {
         const url = new URL(request.url);
-        if (request.method === "GET" && url.pathname === "/") {
-          return new Response(LANDING_HTML, { status: 200, headers: LANDING_HEADERS });
+        if (
+          (request.method === "GET" || request.method === "HEAD") &&
+          url.pathname === "/"
+        ) {
+          const body = request.method === "HEAD" ? null : LANDING_HTML;
+          return new Response(body, { status: 200, headers: LANDING_HEADERS });
         }
         if (request.method !== "POST") {
           return json(
