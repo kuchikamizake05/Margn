@@ -329,6 +329,10 @@ function tokenize(value: string): string[] {
   ];
 }
 
+// Below this many matches the quote range is too thin to be meaningful, so we
+// relax the token requirement rather than return a near-empty sample.
+const MIN_QUOTE_SAMPLE = 5;
+
 function matchingServices(
   snapshot: MarketSnapshot,
   need: string
@@ -337,15 +341,31 @@ function matchingServices(
   if (tokens.length === 0) {
     return [];
   }
-  const requiredMatches = Math.max(1, Math.ceil(tokens.length / 2));
 
-  return snapshot.services.filter((service) => {
-    if (!Number.isFinite(service.fee) || service.fee < 0) {
-      return false;
-    }
+  const priced = snapshot.services.filter(
+    (service) => Number.isFinite(service.fee) && service.fee >= 0
+  );
+  const scored = priced.map((service) => {
     const haystack = service.search_text.toLocaleLowerCase("en-US");
-    return tokens.filter((token) => haystack.includes(token)).length >= requiredMatches;
+    return {
+      service,
+      hits: tokens.filter((token) => haystack.includes(token)).length
+    };
   });
+
+  // Prefer services that match ALL tokens; a single shared word like "crypto"
+  // otherwise pulls in hundreds of unrelated services and blows the range.
+  // Relax the threshold only when an all-tokens match is too thin to be useful.
+  const majority = Math.max(1, Math.ceil(tokens.length / 2));
+  for (const required of [tokens.length, majority]) {
+    const hits = scored
+      .filter((entry) => entry.hits >= required)
+      .map((entry) => entry.service);
+    if (hits.length >= MIN_QUOTE_SAMPLE || required === majority) {
+      return hits;
+    }
+  }
+  return [];
 }
 
 function median(sortedValues: number[]): number {

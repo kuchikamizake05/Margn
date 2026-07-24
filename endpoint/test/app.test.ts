@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createApp, type MarketSnapshot } from "../src/app";
+import { createApp, type MarketSnapshot, type MarketService } from "../src/app";
 
 const snapshot: MarketSnapshot = {
   captured_at: "2026-07-23T12:55:23Z",
@@ -250,6 +250,59 @@ describe("Margn API", () => {
       matches: 4,
       price_median: 0.1
     });
+  });
+
+  it("excludes single-token outliers when a full-token sample exists", async () => {
+    // Five services genuinely about "crypto news", plus one priced outlier that
+    // only shares the word "crypto". The outlier must not widen the range.
+    const base = snapshot.services[0]!;
+    const fullMatches: MarketService[] = [0.01, 0.02, 0.03, 0.04, 0.05].map(
+      (fee, i) => ({
+        ...base,
+        agent_id: `full-${i}`,
+        fee,
+        endpoint: `https://full-${i}.example.test/news`,
+        search_text: "crypto news headlines market wire"
+      })
+    );
+    const outlier: MarketService = {
+      ...base,
+      agent_id: "outlier",
+      fee: 66,
+      endpoint: "https://outlier.example.test/bot",
+      search_text: "crypto trading bot signals"
+    };
+    const app = createApp({
+      snapshot: { ...snapshot, services: [...fullMatches, outlier] },
+      fetchFn: vi.fn()
+    });
+
+    const response = await app.fetch(post("/v1/quote", { need: "crypto news" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      matches: 5,
+      price_min: 0.01,
+      price_max: 0.05
+    });
+  });
+
+  it("relaxes to a partial match when a full-token match is too thin", async () => {
+    // Only one service matches all of "swap tokens dex"; the rest match one
+    // token. Rather than return a single-item range, it relaxes the threshold.
+    const base = snapshot.services[0]!;
+    const services: MarketService[] = [
+      { ...base, agent_id: "s0", fee: 0.1, search_text: "swap tokens dex router" },
+      { ...base, agent_id: "s1", fee: 0.2, search_text: "swap tokens aggregator" },
+      { ...base, agent_id: "s2", fee: 0.3, search_text: "swap liquidity pool" }
+    ];
+    const app = createApp({
+      snapshot: { ...snapshot, services },
+      fetchFn: vi.fn()
+    });
+
+    const response = await app.fetch(post("/v1/quote", { need: "swap tokens dex" }));
+    const body = (await response.json()) as { matches: number };
+    expect(body.matches).toBeGreaterThan(1);
   });
 
   it("combines liveness with market price position", async () => {
