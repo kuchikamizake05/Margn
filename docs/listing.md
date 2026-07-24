@@ -67,14 +67,15 @@ probes.
 
 ## Registration payload
 
-Upload `assets/avatar.png` first (`onchainos agent upload --file`) and replace
-`<avatar-cdn-url>` with the returned CDN URL. The endpoint URLs are already final.
+Avatar uploaded via `onchainos agent upload --file assets/avatar.png`; the CDN
+URL below is final. The endpoint URLs are already final. Payload is
+registration-ready.
 
 ```json
 {
   "name": "Margn",
   "description": "Margn gives OKX.AI buyers a transparent pre-purchase check before funds move. It verifies whether a provider endpoint responds now, shows the observed market price range for a requested need, and combines both signals without claiming which provider is best.",
-  "picture": "<avatar-cdn-url>",
+  "picture": "https://static.okx.com/cdn/web3/wallet/marketplace/headimages/agent/avatar/d7b546b7-c911-45f1-9f53-7d545bf07f4a.png",
   "services": [
     {
       "serviceName": "Endpoint Liveness Check",
