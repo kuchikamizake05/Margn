@@ -382,6 +382,7 @@ function buildQuote(snapshot: MarketSnapshot, need: string) {
     return {
       need,
       matches: 0,
+      low_sample: true,
       price_min: null,
       price_median: null,
       price_max: null,
@@ -391,14 +392,18 @@ function buildQuote(snapshot: MarketSnapshot, need: string) {
   }
 
   const prices = matches.map((service) => service.fee).sort((a, b) => a - b);
+  const lowSample = matches.length < MIN_QUOTE_SAMPLE;
   return {
     need,
     matches: matches.length,
+    low_sample: lowSample,
     price_min: prices[0] ?? null,
     price_median: median(prices),
     price_max: prices.at(-1) ?? null,
     snapshot_date: snapshot.captured_at.slice(0, 10),
-    note: "prices from snapshot; liveness is never cached"
+    note: lowSample
+      ? `only ${matches.length} matching service(s) — treat this range as indicative, not representative; liveness is never cached`
+      : "prices from snapshot; liveness is never cached"
   };
 }
 
@@ -492,6 +497,7 @@ export function createApp(dependencies: AppDependencies): {
           ...verification,
           price,
           market_matches: quote.matches,
+          market_low_sample: quote.low_sample,
           market_min: quote.price_min,
           market_median: quote.price_median,
           market_max: quote.price_max,

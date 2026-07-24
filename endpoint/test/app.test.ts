@@ -195,11 +195,11 @@ describe("Margn API", () => {
     await expect(response.json()).resolves.toMatchObject({
       need: "crypto news",
       matches: 3,
+      low_sample: true,
       price_min: 0.01,
       price_median: 0.05,
       price_max: 0.55,
-      snapshot_date: "2026-07-23",
-      note: "prices from snapshot; liveness is never cached"
+      snapshot_date: "2026-07-23"
     });
   });
 
@@ -284,6 +284,37 @@ describe("Margn API", () => {
       price_min: 0.01,
       price_max: 0.05
     });
+  });
+
+  it("flags low_sample when a need matches fewer than five services", async () => {
+    const app = createApp({ snapshot, fetchFn: vi.fn() });
+
+    // The fixture has 3 crypto-news services — below the 5-sample floor.
+    const response = await app.fetch(post("/v1/quote", { need: "crypto news" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      matches: 3,
+      low_sample: true
+    });
+  });
+
+  it("does not flag low_sample when the sample is large enough", async () => {
+    const base = snapshot.services[0]!;
+    const many: MarketService[] = Array.from({ length: 6 }, (_, i) => ({
+      ...base,
+      agent_id: `m-${i}`,
+      fee: 0.01 * (i + 1),
+      endpoint: `https://m-${i}.example.test/news`,
+      search_text: "crypto news headlines market"
+    }));
+    const app = createApp({
+      snapshot: { ...snapshot, services: many },
+      fetchFn: vi.fn()
+    });
+
+    await expect(
+      app.fetch(post("/v1/quote", { need: "crypto news" })).then((r) => r.json())
+    ).resolves.toMatchObject({ matches: 6, low_sample: false });
   });
 
   it("relaxes to a partial match when a full-token match is too thin", async () => {
