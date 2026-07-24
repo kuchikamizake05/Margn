@@ -1,17 +1,24 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const endpointDir = resolve(scriptDir, "..");
 const repositoryDir = resolve(endpointDir, "..");
-const inputPath = resolve(
-  repositoryDir,
-  "research",
-  "marketplace-scan",
-  "agents-2026-07-23T1955.json"
-);
+const scanDir = resolve(repositoryDir, "research", "marketplace-scan");
+
+// Pick the newest agents-*.json so a demo-day rescan is picked up automatically;
+// allow an explicit override via argv for reproducing an older date.
+const override = process.argv[2];
+const scanFiles = (await readdir(scanDir))
+  .filter((f) => f.startsWith("agents-") && f.endsWith(".json"))
+  .sort();
+if (!override && scanFiles.length === 0) {
+  throw new Error(`no agents-*.json in ${scanDir}; run scan.py first`);
+}
+const inputPath = resolve(scanDir, override ?? scanFiles[scanFiles.length - 1]);
 const outputPath = resolve(endpointDir, "data", "market-snapshot.json");
+console.error(`build-snapshot: reading ${inputPath}`);
 
 const raw = JSON.parse(await readFile(inputPath, "utf8"));
 const services = [];
