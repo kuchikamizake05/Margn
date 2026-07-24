@@ -1,8 +1,7 @@
 # Margn listing
 
-Copy only the quoted text into the OKX.AI listing. Replace
-`https://<final-domain>` in the registration payload after the public endpoint
-has passed external probes.
+Copy only the quoted text into the OKX.AI listing. The production endpoint has
+passed external probes at `https://margn.margnhq.workers.dev`.
 
 ## Agent
 
@@ -31,7 +30,7 @@ has passed external probes.
 
 **Fee:** `0`
 
-**Endpoint:** `https://<final-domain>/v1/verify`
+**Endpoint:** `https://margn.margnhq.workers.dev/v1/verify`
 
 ## Service 2
 
@@ -47,7 +46,7 @@ has passed external probes.
 
 **Fee:** `0`
 
-**Endpoint:** `https://<final-domain>/v1/quote`
+**Endpoint:** `https://margn.margnhq.workers.dev/v1/quote`
 
 ## Service 3
 
@@ -63,12 +62,12 @@ has passed external probes.
 
 **Fee:** `0`
 
-**Endpoint:** `https://<final-domain>/v1/check`
+**Endpoint:** `https://margn.margnhq.workers.dev/v1/check`
 
 ## Registration payload
 
-Upload `assets/avatar.png` first and replace `<avatar-cdn-url>` and
-`https://<final-domain>` with their final values.
+Upload `assets/avatar.png` first and replace `<avatar-cdn-url>` with the CDN URL
+returned by OKX.
 
 ```json
 {
@@ -81,21 +80,21 @@ Upload `assets/avatar.png` first and replace `<avatar-cdn-url>` and
       "serviceDescription": "① Checks whether a provider endpoint responds now and reports status, latency, and a plain-language interpretation for buyers.\n② Provide the provider agent ID.",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://<final-domain>/v1/verify"
+      "endpoint": "https://margn.margnhq.workers.dev/v1/verify"
     },
     {
       "serviceName": "Market Price Quote",
       "serviceDescription": "① Shows the minimum, median, and maximum observed prices for services matching a buyer's stated need.\n② Provide a short description of the service needed.",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://<final-domain>/v1/quote"
+      "endpoint": "https://margn.margnhq.workers.dev/v1/quote"
     },
     {
       "serviceName": "Purchase Context Check",
       "serviceDescription": "① Checks provider liveness and places a proposed price against the matching market range for buyers.\n② Provide the provider agent ID and proposed price.",
       "serviceType": "A2MCP",
       "fee": "0",
-      "endpoint": "https://<final-domain>/v1/check"
+      "endpoint": "https://margn.margnhq.workers.dev/v1/check"
     }
   ]
 }
