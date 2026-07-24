@@ -77,6 +77,129 @@ function json(payload: unknown, status = 200): Response {
   });
 }
 
+// Human-facing landing page so clicking the Worker URL in a browser (a GET)
+// shows a live product surface instead of the JSON 405 that POST-only routes
+// return. Self-contained: inline CSS/JS, same-origin fetch to the real routes.
+const LANDING_HTML = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Margn — pre-purchase check for OKX.AI</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.25rem; min-height: 100vh;
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: #0d0f14; color: #e7e9ee;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  main { width: 100%; max-width: 640px; }
+  h1 { font-size: 1.9rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
+  .tag { color: #8b93a7; margin: 0 0 2rem; }
+  .card { background: #161923; border: 1px solid #262c3a; border-radius: 12px;
+          padding: 1.1rem 1.15rem; margin-bottom: 1rem; }
+  .card h2 { font-size: .82rem; text-transform: uppercase; letter-spacing: .08em;
+             color: #9aa3b8; margin: 0 0 .1rem; }
+  .card p { margin: 0 0 .8rem; color: #8b93a7; font-size: .85rem; }
+  .row { display: flex; gap: .5rem; }
+  input { flex: 1; min-width: 0; background: #0d0f14; border: 1px solid #2d3446;
+          color: #e7e9ee; border-radius: 8px; padding: .55rem .7rem; font: inherit; }
+  input:focus { outline: 2px solid #5b8cff; outline-offset: 0; border-color: transparent; }
+  button { background: #5b8cff; color: #06122e; border: 0; border-radius: 8px;
+           padding: .55rem 1rem; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { background: #77a0ff; }
+  button:disabled { opacity: .55; cursor: wait; }
+  pre { background: #0b0d12; border: 1px solid #232838; border-radius: 8px;
+        padding: .8rem; margin: .8rem 0 0; overflow-x: auto; font-size: .8rem;
+        color: #c6ccdc; white-space: pre-wrap; word-break: break-word; }
+  footer { color: #6b7285; font-size: .8rem; margin-top: 1.5rem; text-align: center; }
+  a { color: #77a0ff; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Margn</h1>
+  <p class="tag">A pre-purchase check for OKX.AI buyers — liveness, market price, and the platform's own scores, before you confirm. A layer on top of <code>asp-match</code>, never a replacement.</p>
+
+  <section class="card">
+    <h2>verify</h2>
+    <p>Live liveness probe of an agent's endpoint. Never cached.</p>
+    <div class="row">
+      <input id="verify-in" value="5053" aria-label="agent id" />
+      <button data-run="verify">Probe</button>
+    </div>
+    <pre id="verify-out" hidden></pre>
+  </section>
+
+  <section class="card">
+    <h2>quote</h2>
+    <p>Market price range for a need, from the snapshot.</p>
+    <div class="row">
+      <input id="quote-in" value="crypto news" aria-label="need" />
+      <button data-run="quote">Quote</button>
+    </div>
+    <pre id="quote-out" hidden></pre>
+  </section>
+
+  <section class="card">
+    <h2>check</h2>
+    <p>Liveness + where a price sits vs the market median.</p>
+    <div class="row">
+      <input id="check-id" value="5053" aria-label="agent id" style="flex:2" />
+      <input id="check-price" value="0.55" aria-label="price" inputmode="decimal" style="flex:1" />
+      <button data-run="check">Check</button>
+    </div>
+    <pre id="check-out" hidden></pre>
+  </section>
+
+  <footer>Machine interface: <code>POST /v1/verify · /v1/quote · /v1/check</code></footer>
+</main>
+<script>
+  const bodyFor = {
+    verify: () => ({ agentId: document.getElementById('verify-in').value.trim() }),
+    quote: () => ({ need: document.getElementById('quote-in').value.trim() }),
+    check: () => ({
+      agentId: document.getElementById('check-id').value.trim(),
+      price: Number(document.getElementById('check-price').value)
+    })
+  };
+  document.querySelectorAll('button[data-run]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const route = btn.dataset.run;
+      const out = document.getElementById(route + '-out');
+      btn.disabled = true;
+      out.hidden = false;
+      out.textContent = 'Running…';
+      try {
+        const res = await fetch('/v1/' + route, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(bodyFor[route]())
+        });
+        out.textContent = JSON.stringify(await res.json(), null, 2);
+      } catch (err) {
+        out.textContent = 'Request failed: ' + err;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+</script>
+</body>
+</html>`;
+
+const LANDING_HEADERS = {
+  "content-type": "text/html; charset=utf-8",
+  "cache-control": "no-store",
+  "content-security-policy":
+    "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY"
+};
+
 function error(code: string, message: string): {
   error: { code: string; message: string };
 } {
@@ -441,6 +564,9 @@ export function createApp(dependencies: AppDependencies): {
     async fetch(request: Request): Promise<Response> {
       try {
         const url = new URL(request.url);
+        if (request.method === "GET" && url.pathname === "/") {
+          return new Response(LANDING_HTML, { status: 200, headers: LANDING_HEADERS });
+        }
         if (request.method !== "POST") {
           return json(
             error("METHOD_NOT_ALLOWED", "Use POST for Margn service endpoints."),

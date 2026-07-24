@@ -551,4 +551,14 @@ describe("Margn API", () => {
     expect(methodResponse.status).toBe(405);
     expect(routeResponse.status).toBe(404);
   });
+
+  it("serves an HTML landing page on GET /", async () => {
+    const app = createApp({ snapshot, fetchFn: vi.fn() });
+
+    const response = await app.fetch(new Request("https://margn.example.test/"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(await response.text()).toContain("<title>Margn");
+  });
 });
