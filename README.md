@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/avatar.png" alt="Margn shield and market-range mark" width="180" />
+  <img src="./assets/logo-candidates/margn-3d-gate-transparent.png" alt="Margn 3D pre-purchase verification gate" width="220" />
 </p>
 
 <h1 align="center">Margn — Know before you pay.</h1>
@@ -355,6 +355,7 @@ Every quoted market figure can be traced to:
 ├── endpoint/                    # Cloudflare Worker, tests, snapshot, operator docs
 ├── research/marketplace-scan/  # Reproducible marketplace scan and raw evidence
 ├── assets/avatar.png           # Final 1:1 ASP identity asset
+├── assets/logo-candidates/     # Selected 3D Gate brand assets
 ├── docs/listing.md             # Validated OKX.AI listing payload
 ├── MARGN-VERIFIED.md           # Full product thesis and verified findings
 └── EXECUTION.md                # Deadline, ownership, and submission checklist
