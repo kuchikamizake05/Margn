@@ -77,7 +77,7 @@ it early with dated proof (`docs/demo/proof/`).
   finds online-but-dead agents.
 - `endpoint/` — Cloudflare Worker (Sako's domain). `src/app.ts` is the whole app;
   `data/market-snapshot.json` is the price/agent snapshot; `test/` has the suite
-  (50 tests). `npm run build:snapshot` rebuilds the snapshot from the newest
+  (57 tests). `npm run build:snapshot` rebuilds the snapshot from the newest
   `agents-*.json`; `npx wrangler deploy` ships it.
 - `docs/listing.md` — the exact registered payload for #8646.
 - `docs/demo/demo-script.md` — the 90s demo, beat-by-beat, with a recording-day

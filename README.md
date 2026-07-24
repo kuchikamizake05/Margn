@@ -23,7 +23,7 @@
 | Worker | [`margn.margnhq.workers.dev`](https://margn.margnhq.workers.dev) — live |
 | OKX.AI identity | ASP **#8646 “Margn”** — pending review |
 | Services | 3 A2MCP endpoints · fee `0` · final production URLs |
-| Verification | 46 tests · 97.69% statements · 91.24% branches |
+| Verification | 57 tests · 98.83% statements · 92.07% branches |
 | External probe | 4 runs per route · all HTTP 200 · 110–323 ms · no 500s |
 
 ## Try Margn in 60 seconds
@@ -239,11 +239,11 @@ Verified on 24 July 2026:
 | Quality gate | Result |
 | --- | ---: |
 | Test files | 2 passed |
-| Tests | 46 passed |
-| Statement coverage | 97.69% |
-| Branch coverage | 91.24% |
-| Function coverage | 96.15% |
-| Line coverage | 97.63% |
+| Tests | 57 passed |
+| Statement coverage | 98.83% |
+| Branch coverage | 92.07% |
+| Function coverage | 100% |
+| Line coverage | 98.8% |
 | Dependency audit | 0 vulnerabilities |
 | Worker bundle | 2,331 KiB raw · 417 KiB gzip |
 
