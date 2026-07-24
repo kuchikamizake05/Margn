@@ -1,148 +1,168 @@
-# Margn — Skrip Demo 90 Detik
+# Margn — 90-Second Demo Script
 
-Semua perintah di bawah sudah terbukti jalan (24 Juli 2026). Terminal asli, tanpa
-slide. Sebut ASP lain **pakai ID, bukan nama** — mereka peserta lain (§8
-`MARGN-VERIFIED.md`).
+Real terminal, no slides. Every command below is confirmed working (24 Jul 2026).
+Refer to other people's ASPs **by ID, never by name** — they are fellow
+participants (§8 `MARGN-VERIFIED.md`).
+
+Endpoint: `https://margn.margnhq.workers.dev` · ASP `#8646` · all services `fee 0`.
 
 ---
 
-## ⚠️ Prep wajib di HARI REKAM (bukan sebelumnya)
+## ⚠️ Do this ON RECORDING DAY (not before)
 
-Pasar bergerak ~2.000 transaksi/hari; target bisa berubah mati↔hidup. Jalankan
-urut, pagi sebelum rekam:
+The market moves ~2,000 transactions/day; a target can flip dead↔alive and the
+ranking can shift. Run this the morning you record:
 
 ```bash
 cd research/marketplace-scan
-python3 scan.py                              # snapshot baru
-python3 matchtest.py | tee matchtest-$(date +%Y-%m-%dT%H%M).txt   # ranking gap masih ada?
-python3 find-dead-demo-target.py             # target mati yang masih mati hari ini
-cd ../../endpoint && npm run build:snapshot  # refresh snapshot yang dipakai Worker
-npx wrangler deploy                          # deploy snapshot baru (URL & registry TIDAK berubah)
+python3 scan.py                                   # fresh timestamped snapshot
+python3 matchtest.py    | tee matchtest-$(date +%Y-%m-%dT%H%M).txt   # ranking gap still there?
+python3 find-dead-demo-target.py                  # dead-but-online targets valid today
+cd ../../endpoint
+npm run build:snapshot                            # rebuild Worker snapshot (auto-picks newest scan)
+npx wrangler deploy                               # deploy it — URL and registry never change
 ```
 
-Lalu konfirmasi ulang tiap target yang akan kamu tunjuk di kamera:
+Then re-confirm every target you will show on camera:
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"<DEAD_ID>"}'   # harus alive:false
+  -H 'content-type: application/json' -d '{"agentId":"<DEAD_ID>"}'   # must be alive:false
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>"}'   # harus alive:true
+  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>"}'   # must be alive:true
 ```
 
-**Jangan** `onchainos agent update` — memicu QA ulang saat pending. `wrangler
-deploy` aman: mengubah kode/snapshot di balik URL yang sama, registry tak
-tersentuh.
+**Never run `onchainos agent update`** — it re-triggers QA while the listing is
+under review. `wrangler deploy` is safe: it changes code behind the same URL, the
+on-chain registry is untouched.
 
-**Target per 24 Juli** (ganti kalau prep menemukan yang lebih bersih):
-- Mati: `#5053` atau `#4999` — tunnel ephemeral, mati permanen, `alive:false`
-- Hidup: `#5524` atau `#1500` — konfirmasi dulu `alive:true`
+**Targets confirmed 24 Jul** (replace if the morning rescan finds cleaner ones):
+- Dead: `#5053` or `#4999` — ephemeral tunnels, permanently down, `alive:false`
+- Live: `#5524` or `#1500` — confirm `alive:true` before recording
+
+Pick **single-service** agents for `verify`/`check` so the probe resolves
+unambiguously to the endpoint you mean. `#3152` is multi-service and resolves to
+the wrong endpoint — do not use it as a live target.
 
 ---
 
-## Beat 1 · 0–15 dtk · Provider mati yang tak terdeteksi
+## Beat 1 · 0–15s · The dead provider nobody flags
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
   -H 'content-type: application/json' -d '{"agentId":"5053"}'
 ```
-Muncul: `"alive": false … "http_status": 530`.
+Shows: `"alive": false … "http_status": 530`.
 
-> "Platform menandai provider ini **online**. Margn memprobenya langsung —
-> mati. Pembeli akan membayar layanan yang tidak bisa jalan, dan tidak ada
-> yang memberitahunya."
+> "The platform marks this provider **online**. Margn probes it live — it's dead.
+> A buyer would pay for a service that can't run, and nothing tells them."
 
-Lalu angka sistematisnya (dari `find-dead-demo-target.py`):
+Then the systematic number (from `find-dead-demo-target.py`):
 
-> "Dan ini bukan satu kasus. **26 dari 563 agent yang OKX tandai online
-> ternyata mati.** Flag-nya tidak bisa dipercaya. Satu-satunya kebenaran
-> adalah probe langsung."
+> "And this isn't one unlucky case. **26 of 563 agents the platform flags as
+> online are actually unreachable.** The flag can't be trusted. The only source
+> of truth is a live probe."
 
-Kontras cepat — ASP sehat:
+Quick contrast — a healthy ASP:
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
   -H 'content-type: application/json' -d '{"agentId":"5524"}'
 ```
-> "Yang ini hidup. Biner. Tidak bisa dibantah."
+> "This one's alive. Binary. Not up for debate."
 
 ---
 
-## Beat 2 · 15–50 dtk · Ranking gap — inti bukti
+## Beat 2 · 15–50s · The ranking gap — the core evidence
 
-Jalankan `asp-match` bawaan OKX, layar penuh, tidak dipotong:
+Run OKX's own `asp-match`, full screen, uncut:
 ```bash
 onchainos agent asp-match --task-desc "get latest crypto news headlines"
 ```
 
-Zoom ke dua baris (angka pasti diambil dari `matchtest` hari rekam):
+Zoom into two rows (read the exact numbers from that day's `matchtest` run):
 
-> "Peringkat 3: **$0.55 · keamanan 2.0 · 1 penjualan.** Peringkat 5: **$0.01 ·
-> keamanan 5.0 · 1.670 penjualan** — lebih baik di setiap metrik yang OKX ukur
-> sendiri, tapi diperingkat **di bawahnya**."
+> "Rank 3: **$0.55 · security 2.0 · 1 sale.** Rank 5: **$0.01 · security 5.0 ·
+> 1,670 sales** — better on every metric OKX measures itself, yet ranked
+> *below* it."
 
-> "Ini API OKX sendiri. Jalankan perintah yang sama sekarang juga."
+> "This is OKX's own API. Run the same command yourself right now."
 
-Sistematis:
+Systematic:
 
-> "Diuji pada 7 kebutuhan yang bisa dijalankan. **7 dari 7**, opsi
-> terbaik-menurut-nilai kalah dari opsi yang lebih mahal dan lebih buruk.
-> Retrieval-nya bagus. Ranking-nya belum ada."
+> "Tested across 7 needs that run cleanly. In **7 of 7**, the best-by-value
+> option ranks below a pricier, worse one. Retrieval works. Ranking doesn't
+> exist yet."
 
-**Framing yang benar:** bukan "asp-match rusak" — retrieval memang tugasnya dan
-itu jalan. Yang belum lahir adalah **lapisan ranking di atasnya.** Margn mengisi
-lapisan itu, bukan menggantikan asp-match.
+**Framing:** don't say asp-match is "broken" — retrieval is its job and it works.
+What doesn't exist yet is the **ranking layer on top**. Margn is that layer, not
+a replacement for asp-match.
 
 ---
 
-## Beat 3 · 50–75 dtk · Margn mengisi kartu
+## Beat 3 · 50–75s · Margn fills the card
 
-Kartu konfirmasi pembeli hanya menampilkan Provider + Price. Margn menambah
-konteks yang hilang:
+A buyer's confirmation card shows only Provider + Price. Margn adds the missing
+context.
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/quote \
   -H 'content-type: application/json' -d '{"need":"crypto news"}'
 ```
-> "Rentang harga pasar untuk kebutuhan ini: min · median · maks."
+Shows: `matches: 56 · min 0 · median 0.1 · max 4`.
+> "The market price range for this need: min, median, max — from 56 comparable
+> services."
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/check \
-  -H 'content-type: application/json' -d '{"agentId":"5053","price":0.55}'
+  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>","price":<PRICE>}'
 ```
-> "Gabungan: hidup atau mati, plus posisi harga terhadap pasar —
-> '27× di atas median'. Konteks, bukan vonis 'terbaik'."
+> "Combined: alive or dead, plus where the price sits against the market —
+> 'Nx above median'. Context, not a 'best' verdict."
 
-> "Sinyalnya sudah ada di API OKX sejak awal. Tidak ada yang membacanya."
+Use a **single-service** agent for `check`, and confirm its output on recording
+day. Running it on the overpriced rank-3 provider from Beat 2 reinforces the gap
+(shows it sitting far above median).
+
+Honesty beat (optional, strong): show a thin market.
+```bash
+curl -sS -X POST https://margn.margnhq.workers.dev/v1/quote \
+  -H 'content-type: application/json' -d '{"need":"summarize a pdf document"}'
+```
+> "Only one service matches, so Margn flags `low_sample` and says the range is
+> indicative — it never fakes confidence it doesn't have."
+
+Then the line that ties it together:
+
+> "The signal was in OKX's API the whole time. Nobody was reading it."
 
 ---
 
-## Beat 4 · 75–90 dtk · Tutup
+## Beat 4 · 75–90s · Close
 
-> "Tiga tool. `verify` — hidup atau mati sekarang. `quote` — rentang harga
-> pasar. `check` — keduanya sekaligus. Semua fakta terukur, tidak pernah
-> menghakimi kualitas."
+> "Three tools. `verify` — alive or dead, right now. `quote` — the market price
+> range. `check` — both at once. All measured facts, never a quality judgment."
 
-Tunjukkan Margn adalah ASP live sungguhan (kalau sudah approved: screenshot
-listing #8646; kalau belum: `agent service-list --agent-id 8646` menampilkan 3
-service terdaftar). Selesai.
+Show Margn is a real, live ASP (if approved: screenshot of the #8646 listing; if
+still pending: `onchainos agent service-list --agent-id 8646` showing the three
+registered services). Done.
 
 ---
 
-## Aturan (jangan dilanggar)
+## Rules (do not break)
 
-- Terminal asli, tanpa slide.
-- ASP lain disebut **pakai ID**, tidak pakai nama.
-- **Jangan** sembunyikan latensi probe — itu justru buktinya nyata.
-- **Jangan** bilang "kami memperbaiki OKX" → "kami membaca sinyal yang sudah
-  ada di sana".
-- **Jangan** pakai kata "terbaik" di mana pun.
-- Angka apa pun yang muncul di layar harus dari run **hari rekam**, bukan disalin
-  dari dokumen.
+- Real terminal, no slides.
+- Other ASPs referred to **by ID**, never by name.
+- **Don't** hide probe latency — it's the proof it's real.
+- **Don't** say "we fix OKX" → "we read a signal that's already there".
+- **Never** use the word "best" anywhere.
+- Every number on screen must come from **recording-day** runs, not copied from
+  the docs.
 
-## Utang yang sebaiknya beres sebelum rekam (Sako, S4)
+## Notes on the tools (already handled)
 
-`quote("crypto news")` sekarang menghasilkan 415 match dengan maks $66 — matching
-token `crypto` terlalu longgar, rentang harganya melebar dan bisa dipertanyakan
-juri. Perketat matching (butuh ≥2 token, atau bobot frasa) supaya rentang yang
-tampil di Beat 3 masuk akal. Ini kode di balik URL — aman, tidak menyentuh
-registry. Kalau belum sempat, pilih `need` yang lebih spesifik saat rekam dan tes
-rentangnya dulu.
+- `quote` matching is tightened (S4): it requires all query tokens and only
+  relaxes when the full-token sample is thin, so `crypto news` returns 56 related
+  services (~$4 max), not 415 with a $66 outlier.
+- `quote`/`check` return `low_sample` / `market_low_sample` when fewer than five
+  services match, so a thin market isn't shown as a confident range.
+- `verify` never caches, times out upstream at 5s, and never returns 500.
