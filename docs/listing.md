@@ -1,8 +1,10 @@
 # Margn listing
 
-Copy only the quoted text into the OKX.AI listing. The endpoint is deployed at
-`https://margn.margnhq.workers.dev` — register only after it has passed external
-probes.
+The production endpoint is live and has passed external probes at
+`https://margn.margnhq.workers.dev`. This listing is already registered as
+ASP **#8646 "Margn"** (status: pending review). The text below is the record of
+what was submitted — do not re-submit via `agent update` while the review is
+pending, as that re-triggers QA.
 
 ## Agent
 
@@ -67,9 +69,9 @@ probes.
 
 ## Registration payload
 
-Avatar uploaded via `onchainos agent upload --file assets/avatar.png`; the CDN
-URL below is final. The endpoint URLs are already final. Payload is
-registration-ready.
+This is the exact payload that was submitted for #8646. Avatar was uploaded via
+`onchainos agent upload --file assets/avatar.png`; the CDN URL, endpoint URLs,
+and fees below are all final and on-chain.
 
 ```json
 {

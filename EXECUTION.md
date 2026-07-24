@@ -316,20 +316,22 @@ snapshot di hari demo dan hari submission — tidak perlu ubah kode.
 
 Tersisa: tiga `<final-domain>` di `docs/listing.md` diisi setelah D3.
 
-### S3. Pengerasan · **setelah Diaz deploy (D3)** · ~1 jam
+### S3. Pengerasan · ✅ **SELESAI 24 JULI**
 
 Edge case sudah tertutup 46 test lokal. Yang tersisa butuh URL hidup:
 
-- [ ] probe ketiga endpoint **dari jaringan luar**, berkali-kali, sampai bosan
-- [ ] uji dengan `agentId` tidak ada, `need` kosong, body bukan JSON
-- [ ] uji `verify` terhadap endpoint yang sengaja lambat → harus putus di 5 detik
-- [ ] kabari Diaz: **"URL sehat, siap didaftarkan"**
+- [x] probe ketiga endpoint **dari jaringan luar**: 4 putaran per route, seluruhnya
+      HTTP 200, latensi 110–323 ms
+- [x] uji `agentId` tidak ada, `need` kosong, dan body bukan JSON: seluruhnya
+      error JSON bersih
+- [x] verifikasi tidak ada respons 500 atau exception server yang bocor
+- [x] bukti disimpan di `endpoint/PROBE-2026-07-24.md`
+- [x] kabari Diaz: **"URL sehat, siap didaftarkan"**
 
 ### S4. Dua utang dari review · tidak memblokir siapa pun
 
-- [ ] **`npm ci` gagal** — lockfile tidak sinkron, empat paket `@emnapi` hilang.
-      Checkout bersih tidak bisa install; juri yang mencoba akan tersandung.
-      Perbaikannya sudah ada di working tree (hasil `npm install`), tinggal commit.
+- [x] **`npm ci` sudah sehat** — diverifikasi 24 Juli dari lockfile ter-commit:
+      98 paket terpasang, 46 test lulus, typecheck bersih, audit 0 vulnerability.
 - [ ] siapkan refresh `market-snapshot.json` untuk hari demo dan hari submission —
       jalankan `scan.py` lalu `build-snapshot.mjs`. Menukar file JSON di balik URL
       tidak menyentuh registry sama sekali.

@@ -6,6 +6,11 @@ Cloudflare Worker implementing the three free Margn pre-purchase services:
 - `POST /v1/quote` with `{"need":"crypto news"}`
 - `POST /v1/check` with `{"agentId":"3152","price":0.55}`
 
+**Production:** `https://margn.margnhq.workers.dev`
+
+The production URL was independently probed from Sako's network on
+2026-07-24. See `PROBE-2026-07-24.md`.
+
 Every service response is JSON. Upstream probe failures and validation failures
 return a structured `error` field without exposing a server exception. Route
 and method errors retain their normal HTTP `404` and `405` status.

@@ -6,6 +6,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryDir = resolve(scriptDir, "..", "..");
 const listingPath = resolve(repositoryDir, "docs", "listing.md");
 const avatarPath = resolve(repositoryDir, "assets", "avatar.png");
+const productionOrigin = "https://margn.margnhq.workers.dev";
 
 const markdown = await readFile(listingPath, "utf8");
 const jsonBlock = markdown.match(/```json\s+([\s\S]+?)\s+```/);
@@ -66,8 +67,14 @@ for (const [index, service] of (listing.services ?? []).entries()) {
   ) {
     failures.push(`${label} must be a free A2MCP service with fee "0".`);
   }
-  if (!/^https:\/\/<final-domain>\/v1\/(verify|quote|check)$/.test(service.endpoint)) {
-    failures.push(`${label} endpoint must use the final HTTPS domain template.`);
+  if (
+    !new Set([
+      `${productionOrigin}/v1/verify`,
+      `${productionOrigin}/v1/quote`,
+      `${productionOrigin}/v1/check`
+    ]).has(service.endpoint)
+  ) {
+    failures.push(`${label} endpoint must use the approved production Worker.`);
   }
 }
 
