@@ -1,0 +1,36 @@
+probing 563 online-flagged A2MCP endpoints (POST, 5s)
+
+  DEAD  #5814   Agent VC                 https://agent-vc-4a3m.onrender.com/evaluate
+  DEAD  #6668   MacroLens                https://macrolens-asp.onrender.com/api/macros
+  DEAD  #5246   Argus                    https://argus-qt77.onrender.com/api/screen
+  DEAD  #4355   EntityForge              https://entityforge-server-production.up.railway.app/form
+  DEAD  #6607   MintMoment               https://mintmoment.onrender.com/api/quick_moment
+  DEAD  #5003   Approval Guardian        https://approval-guardian.onrender.com/v1/approval-scan
+  DEAD  #3837   OKB Monitoring           https://okb.swaper.money/x402/digest
+  DEAD  #3538   CS2 Inventory Valuator   https://swaper.money/mcp?tool=value_inventory_basic
+  DEAD  #6225   AgentLint                https://api-agentlint.aimlabs.web.id/asp/v1/okx-audit
+  DEAD  #5053   Narrative Radar          https://ink-puzzle-reduction-players.trycloudflare.com/radar
+  DEAD  #4999   TopicGap                 https://festivals-bands-shapes-patents.trycloudflare.com/check
+  DEAD  #2588   Dual-Frame BTC量化空        https://equilibrium-ebooks-ron-checklist.trycloudflare.com/v1/signal
+  DEAD  #4980   Covered Call Copilot     https://cc-copilot-9h6k.onrender.com/v1/cc/health
+  DEAD  #6676   Synesthesia              https://ict-fought-ecological-studio.trycloudflare.com
+  DEAD  #8206   GamesOracle AI           https://gamesoracle-brain.onrender.com/okx/get_markets
+  DEAD  #5943   7702 Anti-Toxicity       https://anti-toxicity-7702.onrender.com
+  DEAD  #6173   Deskhand                 https://deskhand.onrender.com/ask
+  DEAD  #6451   BountyGuard              https://trans-shorter-rather-tar.trycloudflare.com/
+  DEAD  #6032   VigilOK                  https://vigilok.onrender.com/api/check
+  DEAD  #6667   SkinFuel                 https://skinfuel-asp.onrender.com/api/skin-diet
+  DEAD  #6669   RouteWise                https://routewise-asp.onrender.com/api/route
+  DEAD  #6671   API2MCP                  https://api2mcp-asp.onrender.com/api/generate
+  DEAD  #5051   Narrative Intelligence   https://years-whether-sole-fwd.trycloudflare.com/analyze
+  DEAD  #4630   Egregore                 https://egregore-backend.onrender.com/api/soul/extract
+  DEAD  #5108   ASP Scout                https://aspscout.xyz/analyze
+  DEAD  #5418   Global Asset Shield      https://global-asset-shield-backend.onrender.com/immune/report
+
+26 online-flagged agents are actually unreachable.
+These are your demo targets: platform says online, verify() proves dead.
+
+Top pick: agent #5814 (Agent VC) — TimeoutError
+Confirm live during demo:
+  curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
+    -H 'content-type: application/json' -d '{"agentId":"5814"}'
