@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/logo-candidates/margn-3d-gate-transparent.png" alt="Margn 3D pre-purchase verification gate" width="220" />
+  <img src="./assets/logo-candidates/margn-3d-gate-transparent.png" alt="Margn 3D pre-purchase verification gate" width="185" />
 </p>
 
 <h1 align="center">Margn — Know before you pay.</h1>
@@ -25,6 +25,36 @@
 | Services | 3 A2MCP endpoints · fee `0` · final production URLs |
 | Verification | 46 tests · 97.69% statements · 91.24% branches |
 | External probe | 4 runs per route · all HTTP 200 · 110–323 ms · no 500s |
+
+## Try Margn in 60 seconds
+
+`check` combines a live provider probe with price context from the timestamped
+market snapshot:
+
+```bash
+curl -X POST https://margn.margnhq.workers.dev/v1/check \
+  -H "content-type: application/json" \
+  -d '{"agentId":"3152","price":0.55}'
+```
+
+Selected fields from the live response:
+
+```json
+{
+  "agent_id": "3152",
+  "alive": true,
+  "http_status": 403,
+  "interpretation": "suspicious - endpoint responded with HTTP 403",
+  "price": 0.55,
+  "market_median": 0.02,
+  "price_position": "27.5x above median",
+  "snapshot_date": "2026-07-23"
+}
+```
+
+The Worker returned successfully while preserving the upstream provider's
+`403` as a warning. That distinction is the product: reachable does not
+automatically mean ready to buy.
 
 > **Margn does not replace `asp-match`.** OKX.AI already retrieves relevant
 > services. Margn adds the decision context that is missing between retrieval
@@ -58,35 +88,18 @@ yet appeared two positions lower. This does not mean #2013 is the “best”
 provider—output quality is not measured here. It means a buyer needs more
 context than semantic relevance alone.
 
-The same pattern appeared in **7 of 7 needs that completed successfully**:
-
-| Buyer need | Rank of the strongest measured-value option | Higher-ranked comparison |
-| --- | ---: | --- |
-| Portfolio analysis | 5 | 800× higher price, no score |
-| Crypto news | 5 | 55× higher price, security 2.0, one sale |
-| DEX swap | 5 | 40× higher price, no score |
-| Text translation | 7 | 20× higher price, no score |
-| Image generation | 9 | 3× higher price |
-| Wallet balance | 10 | $0.80 versus $0, no score |
-| Smart-contract audit | 10 | $1.00 versus $0, no score |
-
-The eighth phrase failed deterministically inside the matcher and is preserved
-as a platform edge case rather than counted as a successful test. Full command
-output is available in
-[`matchtest-2026-07-23T1955.txt`](./research/marketplace-scan/matchtest-2026-07-23T1955.txt).
+The same pattern appeared in **all 7 needs that completed successfully**:
+a lower-ranked option had stronger measured-value signals than a result above
+it. The eighth phrase failed deterministically inside the matcher and is
+preserved as an edge case, not counted as a success. The timestamped
+[raw matcher output](./research/marketplace-scan/matchtest-2026-07-23T1955.txt)
+contains all eight queries.
 
 ### This is a marketplace-scale problem
 
-The frozen 45-query scan captured:
-
-| Measured market fact | Result |
-| --- | ---: |
-| Unique agents | **1,006** |
-| Listed services | **2,439** |
-| A2MCP services | **1,673** |
-| A2A services | **766** |
-| Unique endpoints | **1,585** |
-| Agents without feedback or security scores | **74%** |
+The frozen 45-query scan captured **1,006 agents**, **2,439 services**, and
+**1,585 unique endpoints**. Feedback or security scores were missing for
+**74% of agents**.
 
 Because reputation fields are missing for most agents, Margn does not build its
 decision layer around a synthetic quality score. It uses signals that can be
@@ -102,12 +115,14 @@ Margn exposes three small, free services:
 
 | Service | Input | What the buyer gets |
 | --- | --- | --- |
-| `verify(agentId)` | Provider agent ID | Live POST probe, HTTP status, latency, timestamp, and plain-language interpretation |
-| `quote(need)` | Short description of the needed service | Matching service count and observed minimum, median, and maximum prices |
-| `check(agentId, price)` | Provider agent ID and proposed price | Reachability plus the proposed price’s position against the matching market range |
+| `POST /v1/verify` | `agentId` | Live probe, HTTP status, latency, timestamp, and plain-language interpretation |
+| `POST /v1/quote` | `need` | Matching service count and observed minimum, median, and maximum prices |
+| `POST /v1/check` | `agentId`, `price` | Reachability plus the proposed price’s position against the matching market range |
 
 All three services are registered as A2MCP with fee `0`. Calling Margn does not
 create another payment prompt before the purchase it is helping a buyer assess.
+The complete request and response contracts are documented in the
+[Worker operator guide](./endpoint/README.md).
 
 ### Before and after Margn
 
@@ -120,93 +135,8 @@ create another payment prompt before the purchase it is helping a buyer assess.
 | Observed market range | — | Min · median · max |
 | Proposed price versus median | — | Included |
 | Transparent reason | — | Included |
-| Claims to identify a winning provider | — | **Never** |
 
 Margn does not make the purchase decision. It makes the decision legible.
-
-## Try the live API
-
-Base URL:
-
-```text
-https://margn.margnhq.workers.dev
-```
-
-### Verify a provider
-
-```bash
-curl -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H "content-type: application/json" \
-  -d '{"agentId":"3152"}'
-```
-
-Representative production response captured on 24 July:
-
-```json
-{
-  "agent_id": "3152",
-  "agent_name": "Messari",
-  "service_name": "All-Time High Snapshots",
-  "endpoint": "https://api.messari.io/metrics/v2/assets/ath",
-  "latency_ms": 231,
-  "probed_at": "2026-07-24T04:34:08.887Z",
-  "alive": true,
-  "interpretation": "suspicious - endpoint responded with HTTP 403",
-  "http_status": 403
-}
-```
-
-The `403` belongs to the upstream provider, not to Margn. The result shows the
-distinction Margn preserves: the endpoint was reachable, but its response
-deserves attention before purchase.
-
-### Quote a need
-
-```bash
-curl -X POST https://margn.margnhq.workers.dev/v1/quote \
-  -H "content-type: application/json" \
-  -d '{"need":"crypto news"}'
-```
-
-Response shape:
-
-```json
-{
-  "need": "crypto news",
-  "matches": 415,
-  "price_min": 0,
-  "price_median": 0.03,
-  "price_max": 66,
-  "snapshot_date": "2026-07-23",
-  "note": "prices from snapshot; liveness is never cached"
-}
-```
-
-Price values change when the snapshot is refreshed; the response contract does
-not.
-
-### Check a proposed purchase
-
-```bash
-curl -X POST https://margn.margnhq.workers.dev/v1/check \
-  -H "content-type: application/json" \
-  -d '{"agentId":"3152","price":0.55}'
-```
-
-`check` returns the complete `verify` result plus:
-
-```json
-{
-  "price": 0.55,
-  "market_matches": 209,
-  "market_min": 0,
-  "market_median": 0.02,
-  "market_max": 25,
-  "price_position": "27.5x above median",
-  "snapshot_date": "2026-07-23",
-  "note": "prices from snapshot; liveness is never cached"
-}
-```
 
 ## Architecture
 
@@ -233,18 +163,10 @@ flowchart LR
     Check --> Context
 ```
 
-Margn is intentionally small:
-
-- no database;
-- no authentication layer;
-- no wallet custody;
-- no additional x402 payment flow;
-- no cached liveness result;
-- no user-supplied target URL.
-
-The Worker bundles a timestamped price snapshot. `quote` reads that snapshot;
-`verify` selects an agent endpoint from the same snapshot and probes it at
-request time; `check` composes both results.
+The Worker bundles a timestamped price snapshot. `quote` reads it; `verify`
+probes a snapshot-listed endpoint at request time; and `check` composes both
+results. Margn needs no database, authentication layer, wallet custody, or
+user-supplied target URL.
 
 ## Trust and failure handling
 
@@ -279,21 +201,19 @@ Unknown agents, empty needs, and malformed JSON also returned clean JSON
 responses. No run produced HTTP 500 or leaked a server exception. See the
 [full production probe record](./endpoint/PROBE-2026-07-24.md).
 
-## Why Margn fits Software Utility
+## Design choices
 
-| Evaluation lens | What Margn demonstrates |
-| --- | --- |
-| Native ecosystem utility | Works directly with OKX.AI agent IDs, A2MCP endpoints, public prices, and platform signals |
-| Measurable user need | The ranking/context gap is reproduced across every successful test need |
-| Working product | Public Worker, final service URLs, and on-chain ASP #8646—not a mock |
-| Buyer protection | Adds reachability and price context before funds move |
-| Verifiable claims | Timestamped raw data, scripts, matcher output, tests, and external production probes are committed |
-| Focused execution | Three composable services with no database, custody, auth, or added payment friction |
+- **Native to OKX.AI:** works with agent IDs, A2MCP endpoints, listed prices,
+  and platform signals.
+- **Evidence before scoring:** reports observable facts instead of inventing a
+  composite quality score.
+- **Pre-purchase by design:** checks happen before funds move; Margn never
+  selects, pays, or takes custody.
+- **Small operational surface:** three composable services, with no database,
+  authentication layer, or additional payment flow.
 
-**Primary track: Software Utility.** Margn is infrastructure for safer service
-selection, not a content agent or trading strategy. Its Best Product upside
-comes from the same property: a narrow problem, a live surface, and evidence
-that a buyer can verify independently.
+This scope makes Margn a Software Utility: infrastructure that helps buyers
+inspect a service before purchasing it.
 
 ## Reproduce the engineering checks
 
