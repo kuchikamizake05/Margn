@@ -286,6 +286,37 @@ describe("Margn API", () => {
     });
   });
 
+  it("does not fall back to single-token matches for multi-token needs even under low sample sizes", async () => {
+    const base = snapshot.services[0]!;
+    const twoMatches: MarketService[] = [0.01, 0.05].map((fee, i) => ({
+      ...base,
+      agent_id: `two-${i}`,
+      fee,
+      endpoint: `https://two-${i}.example.test/news`,
+      search_text: "crypto news headlines"
+    }));
+    const singleTokenOutlier: MarketService = {
+      ...base,
+      agent_id: "single-token-outlier",
+      fee: 66,
+      endpoint: "https://outlier.example.test/bot",
+      search_text: "crypto trading bot signals"
+    };
+    const app = createApp({
+      snapshot: { ...snapshot, services: [...twoMatches, singleTokenOutlier] },
+      fetchFn: vi.fn()
+    });
+
+    const response = await app.fetch(post("/v1/quote", { need: "crypto news" }));
+
+    await expect(response.json()).resolves.toMatchObject({
+      matches: 2,
+      low_sample: true,
+      price_min: 0.01,
+      price_max: 0.05
+    });
+  });
+
   it("flags low_sample when a need matches fewer than five services", async () => {
     const app = createApp({ snapshot, fetchFn: vi.fn() });
 
