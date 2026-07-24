@@ -41,8 +41,11 @@ on-chain registry is untouched.
 - Live: `#5524` or `#1500` — confirm `alive:true` before recording
 
 Pick **single-service** agents for `verify`/`check` so the probe resolves
-unambiguously to the endpoint you mean. `#3152` is multi-service and resolves to
-the wrong endpoint — do not use it as a live target.
+unambiguously to the endpoint you mean. A multi-service agent (e.g. `#3152`,
+`#2013`) now returns `AMBIGUOUS_SERVICE` with the list of services instead of
+guessing — to target one you must pass `"serviceName":"<exact name>"`. That
+refusal is itself a good demo beat ("Margn won't guess across 80 services"), but
+for the clean live/dead contrast use a single-service agent.
 
 ---
 
@@ -50,9 +53,10 @@ the wrong endpoint — do not use it as a live target.
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"5053"}'
+  -H 'content-type: application/json' -d '{"agentId":"5053"}' | jq 'del(.agent_name)'
 ```
-Shows: `"alive": false … "http_status": 530`.
+Shows: `"alive": false … "http_status": 530`. The `jq` drops `agent_name` so a
+fellow participant's provider is never shown by name on camera.
 
 > "The platform marks this provider **online**. Margn probes it live — it's dead.
 > A buyer would pay for a service that can't run, and nothing tells them."
@@ -66,7 +70,7 @@ Then the systematic number (from `find-dead-demo-target.py`):
 Quick contrast — a healthy ASP:
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"5524"}'
+  -H 'content-type: application/json' -d '{"agentId":"5524"}' | jq 'del(.agent_name)'
 ```
 > "This one's alive. Binary. Not up for debate."
 
@@ -114,7 +118,7 @@ Shows: `matches: 56 · min 0 · median 0.1 · max 4`.
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/check \
-  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>","price":<PRICE>}'
+  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>","price":<PRICE>}' | jq 'del(.agent_name)'
 ```
 > "Combined: alive or dead, plus where the price sits against the market —
 > 'Nx above median'. Context, not a 'best' verdict."
