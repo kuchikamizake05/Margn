@@ -629,19 +629,23 @@ function matchingServices(
     };
   });
 
-  // Prefer services that match ALL tokens; a single shared word like "crypto"
-  // otherwise pulls in hundreds of unrelated services and blows the range.
-  // Relax the threshold only when an all-tokens match is too thin to be useful.
-  const majority = Math.max(1, Math.ceil(tokens.length / 2));
-  for (const required of [tokens.length, majority]) {
+  const minRequired = tokens.length >= 2 ? 2 : 1;
+  let fallbackHits: MarketService[] = [];
+
+  for (let required = tokens.length; required >= minRequired; required--) {
     const hits = scored
       .filter((entry) => entry.hits >= required)
       .map((entry) => entry.service);
-    if (hits.length >= MIN_QUOTE_SAMPLE || required === majority) {
+
+    if (hits.length >= MIN_QUOTE_SAMPLE) {
       return hits;
     }
+    if (hits.length > 0) {
+      fallbackHits = hits;
+    }
   }
-  return [];
+
+  return fallbackHits;
 }
 
 function median(sortedValues: number[]): number {
