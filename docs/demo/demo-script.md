@@ -76,7 +76,7 @@ curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
 
 ---
 
-## Beat 2 · 15–50s · The ranking gap — the core evidence
+## Beat 2 · 15–50s · The value-signal gap — the core evidence
 
 Run OKX's own `asp-match`, full screen, uncut:
 ```bash
@@ -93,13 +93,15 @@ Zoom into two rows (read the exact numbers from that day's `matchtest` run):
 
 Systematic:
 
-> "Tested across 7 needs that run cleanly. In **7 of 7**, the best-by-value
-> option ranks below a pricier, worse one. Retrieval works. Ranking doesn't
-> exist yet."
+> "Tested across 7 needs that run cleanly. In **7 of 7**, the better-on-every-
+> measured-metric option sits below a pricier, worse one. Retrieval works — but
+> list position doesn't track value, so you can't read rank as quality."
 
 **Framing:** don't say asp-match is "broken" — retrieval is its job and it works.
-What doesn't exist yet is the **ranking layer on top**. Margn is that layer, not
-a replacement for asp-match.
+What's missing is **decision context before payment**. Margn adds live
+reachability and market-price context **without pretending to know which
+provider is best** — it does not re-rank or recommend; it hands you the measured
+facts so you decide. (This is the core principle: transparent, never "best".)
 
 ---
 
