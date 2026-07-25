@@ -24,7 +24,9 @@ liveness (prices may be cached); never position Margn as replacing `asp-match`.
 ## Status (update when it changes)
 
 - **ASP `#8646` "Margn"** — role ASP, category SOFTWARE_SERVICES, all services
-  `fee 0`. Under review by OKX. `create` txHash
+  `fee 0`. **APPROVED (25 Jul 2026): `approvalLabel` = "Listed — eligible for task
+  recommendations", status `active`, `approvalRemark` null.** The review-queue risk
+  is cleared. `create` txHash
   `0x9b8c112e2b69f0f4cc1af06c1eb65381d5566c69086c919392e12ae9f0c23c14`.
 - **Worker live:** `https://margn.margnhq.workers.dev` (Cloudflare account
   `amantajati15@gmail.com`, subdomain `margnhq`). Three POST routes:
@@ -128,8 +130,9 @@ they edit it. Remote: `origin` = github.com/kuchikamizake05/Margn.
 
 ## What's left
 
-1. OKX approval (waiting; not in our control).
-2. Record the demo (`docs/demo/demo-script.md`), post on X with `#OKXAI`.
+1. ~~OKX approval~~ — **DONE, approved 25 Jul (Listed/eligible).**
+2. Record the demo (`docs/demo/demo-script.md` — the tight ≤90s 5-beat cut), post
+   on X with `#OKXAI`.
 3. Submit the Google Form before the deadline.
 4. `hackathon.md` (rules) is untracked — commit or leave local, Diaz's call.
 

@@ -1,174 +1,168 @@
 # Margn — 90-Second Demo Script
 
-Real terminal, no slides. Every command below is confirmed working (24 Jul 2026).
-Refer to other people's ASPs **by ID, never by name** — they are fellow
-participants (§8 `MARGN-VERIFIED.md`).
+Real terminal, no slides. **Max 90 seconds** (OKX.AI Genesis Hackathon rule).
+Narration below is ~140 words (~53s spoken at 160 wpm), leaving ~34s for
+commands, zoom, and result holds. Refer to other people's ASPs **by ID, never by
+name** — they are fellow participants (§8 `MARGN-VERIFIED.md`).
 
-Endpoint: `https://margn.margnhq.workers.dev` · ASP `#8646` · all services `fee 0`.
+Endpoint: `https://margn.margnhq.workers.dev` · ASP `#8646` **Listed — eligible
+for task recommendations** (approved, `active`) · all services `fee 0`.
 
 ---
 
-## ⚠️ Do this ON RECORDING DAY (not before)
+## ⚠️ Do this ON RECORDING DAY (before you hit record)
 
-The market moves ~2,000 transactions/day; a target can flip dead↔alive and the
-ranking can shift. Run this the morning you record:
+The market moves ~2,000 tx/day; a target flips dead↔alive and ranks shift. Every
+number and ID you show on camera must come from **that morning's** runs.
 
 ```bash
 cd research/marketplace-scan
 python3 scan.py                                   # fresh timestamped snapshot
-python3 matchtest.py    | tee matchtest-$(date +%Y-%m-%dT%H%M).txt   # ranking gap still there?
+python3 matchtest.py | tee matchtest-$(date +%Y-%m-%dT%H%M).txt   # value gap still there? read the real rows
 python3 find-dead-demo-target.py                  # dead-but-online targets valid today
 cd ../../endpoint
 npm run build:snapshot                            # rebuild Worker snapshot (auto-picks newest scan)
-npx wrangler deploy                               # deploy it — URL and registry never change
+npx wrangler deploy                               # deploy — URL and registry never change
 ```
 
-Then re-confirm every target you will show on camera:
+Then re-confirm **the three exact commands** you will run on camera, and swap the
+IDs/prices/service name below to that day's real values:
 
 ```bash
+# 1) dead probe — must be alive:false
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"<DEAD_ID>"}'   # must be alive:false
-curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>"}'   # must be alive:true
+  -H 'content-type: application/json' -d '{"agentId":"<DEAD_ID>"}' | jq '{agent_id,alive,http_status,interpretation,latency_ms}'
+# 2) the overpriced rank-N provider for the value-gap beat — must resolve (right serviceName) and return a real check
+curl -sS -X POST https://margn.margnhq.workers.dev/v1/check \
+  -H 'content-type: application/json' \
+  -d '{"agentId":"<OVERPRICED_ID>","serviceName":"<EXACT_SERVICE>","need":"<need>","price":<PRICE>}' | jq '{agent_id,http_status,interpretation,platform_scores,market_matches,market_median,price_position}'
 ```
 
-**Never run `onchainos agent update`** — it re-triggers QA while the listing is
-under review. `wrangler deploy` is safe: it changes code behind the same URL, the
-on-chain registry is untouched.
+**Never run `onchainos agent update`** (re-triggers QA). `wrangler deploy` is safe.
 
-**Targets confirmed 24 Jul** (replace if the morning rescan finds cleaner ones):
-- Dead: `#5053` or `#4999` — ephemeral tunnels, permanently down, `alive:false`
-- Live: `#5524` or `#1500` — confirm `alive:true` before recording
-
-Pick **single-service** agents for `verify`/`check` so the probe resolves
-unambiguously to the endpoint you mean. A multi-service agent (e.g. `#3152`,
-`#2013`) now returns `AMBIGUOUS_SERVICE` with the list of services instead of
-guessing — to target one you must pass `"serviceName":"<exact name>"`. That
-refusal is itself a good demo beat ("Margn won't guess across 80 services"), but
-for the clean live/dead contrast use a single-service agent.
+**Targets confirmed 24 Jul (re-confirm the morning of):**
+- Dead: `#5053` — ephemeral tunnel, `alive:false`, HTTP 530.
+- Value gap for "crypto news": `#3152` (overpriced) vs `#2013` (cheaper, better).
+  `#3152` is **multi-service** → the check MUST pass an exact `serviceName`, or it
+  returns `AMBIGUOUS_SERVICE`. Verify the service name from that day's snapshot.
 
 ---
 
-## Beat 1 · 0–15s · The dead provider nobody flags
+## 0–7s · Context
 
-```bash
-curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"5053"}' | jq 'del(.agent_name)'
-```
-Shows: `"alive": false … "http_status": 530`. The `jq` drops `agent_name` so a
-fellow participant's provider is never shown by name on camera.
+Screen: the OKX.AI confirmation card (or Margn landing UI).
 
-> "The platform marks this provider **online**. Margn probes it live — it's dead.
-> A buyer would pay for a service that can't run, and nothing tells them."
+> "Before an OKX.AI buyer pays, they see a provider and a price. They don't see
+> whether the service even works right now."
 
-Then the systematic number (from `find-dead-demo-target.py`):
-
-> "And this isn't one unlucky case. **26 of 563 agents the platform flags as
-> online are actually unreachable.** The flag can't be trusted. The only source
-> of truth is a live probe."
-
-Quick contrast — a healthy ASP:
-```bash
-curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
-  -H 'content-type: application/json' -d '{"agentId":"5524"}' | jq 'del(.agent_name)'
-```
-> "This one's alive. Binary. Not up for debate."
+Focal point on screen: **Know before you pay.**
 
 ---
 
-## Beat 2 · 15–50s · The value-signal gap — the core evidence
+## 7–23s · Dead provider nobody flags
 
-Run OKX's own `asp-match`, full screen, uncut:
+Screen: show the platform's `onlineStatus=1` for the agent, then run:
+
+```bash
+curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
+  -H 'content-type: application/json' -d '{"agentId":"5053"}' | jq '{agent_id,alive,http_status,interpretation,latency_ms}'
+```
+(The `jq` whitelist also drops `agent_name` — never show a participant's name.)
+
+> "The platform marks agent #5053 online. Margn probes the real endpoint now —
+> HTTP 530, unreachable. Twenty-six of 563 online-labeled agents show this gap."
+
+Hold the result on screen ≥2s.
+
+---
+
+## 23–48s · The value-signal gap
+
+Screen: run OKX's own `asp-match`, then zoom to **only the two relevant rows**.
+
 ```bash
 onchainos agent asp-match --task-desc "get latest crypto news headlines"
 ```
 
-Zoom into two rows (read the exact numbers from that day's `matchtest` run):
+> "For crypto news, OKX ranks #3152 above #2013 — yet #2013 is ~55× cheaper,
+> security 5 versus 2, 1,670 sales versus one. Same pattern across all seven
+> testable needs."
 
-> "Rank 3: **$0.55 · security 2.0 · 1 sale.** Rank 5: **$0.01 · security 5.0 ·
-> 1,670 sales** — better on every metric OKX measures itself, yet ranked
-> *below* it."
+Focal callout (use that day's real numbers):
 
-> "This is OKX's own API. Run the same command yourself right now."
+```
+#3152   $0.55 · security 2 · 1 sale
+#2013   $0.01 · security 5 · 1,670 sales
+```
 
-Systematic:
-
-> "Tested across 7 needs that run cleanly. In **7 of 7**, the better-on-every-
-> measured-metric option sits below a pricier, worse one. Retrieval works — but
-> list position doesn't track value, so you can't read rank as quality."
-
-**Framing:** don't say asp-match is "broken" — retrieval is its job and it works.
-What's missing is **decision context before payment**. Margn adds live
-reachability and market-price context **without pretending to know which
-provider is best** — it does not re-rank or recommend; it hands you the measured
-facts so you decide. (This is the core principle: transparent, never "best".)
+Don't linger on the full table.
 
 ---
 
-## Beat 3 · 50–75s · Margn fills the card
+## 48–74s · The product moment (longest hold — this is Margn)
 
-A buyer's confirmation card shows only Provider + Price. Margn adds the missing
-context.
-
-```bash
-curl -sS -X POST https://margn.margnhq.workers.dev/v1/quote \
-  -H 'content-type: application/json' -d '{"need":"crypto news"}'
-```
-Shows: `matches: 56 · min 0 · median 0.1 · max 4`.
-> "The market price range for this need: min, median, max — from 56 comparable
-> services."
+One `check` — not quote-then-check:
 
 ```bash
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/check \
-  -H 'content-type: application/json' -d '{"agentId":"<LIVE_ID>","price":<PRICE>}' | jq 'del(.agent_name)'
+  -H 'content-type: application/json' \
+  -d '{"agentId":"3152","serviceName":"Crypto News Feed","need":"crypto news","price":0.55}' | jq '{agent_id,http_status,interpretation,platform_scores,market_matches,market_median,price_position}'
 ```
-> "Combined: alive or dead, plus where the price sits against the market —
-> 'Nx above median'. Context, not a 'best' verdict."
 
-Use a **single-service** agent for `check`, and confirm its output on recording
-day. Running it on the overpriced rank-3 provider from Beat 2 reinforces the gap
-(shows it sitting far above median).
+> "One Margn check adds the missing context: endpoint status, the platform's own
+> scores, 56 comparable services, a 0.10 median — and this offer at 5.5× above
+> median. Margn doesn't pick a winner. It exposes measurable facts before payment."
 
-Honesty beat (optional, strong): show a thin market.
-```bash
-curl -sS -X POST https://margn.margnhq.workers.dev/v1/quote \
-  -H 'content-type: application/json' -d '{"need":"summarize a pdf document"}'
-```
-> "Only one service matches, so Margn flags `low_sample` and says the range is
-> indicative — it never fakes confidence it doesn't have."
-
-Then the line that ties it together:
-
-> "The signal was in OKX's API the whole time. Nobody was reading it."
+This is the frame that must breathe. Let it sit.
 
 ---
 
-## Beat 4 · 75–90s · Close
+## 74–90s · Proof and close
 
-> "Three tools. `verify` — alive or dead, right now. `quote` — the market price
-> range. `check` — both at once. All measured facts, never a quality judgment."
+Screen: the `#8646` **Listed** listing → Margn landing UI → end card (≥3s).
 
-Show Margn is a real, live ASP (if approved: screenshot of the #8646 listing; if
-still pending: `onchainos agent service-list --agent-id 8646` showing the three
-registered services). Done.
+> "Verify checks liveness. Quote shows the market. Check combines both. Margn is
+> live on OKX.AI. Know before you pay."
+
+End card (hold ≥3s):
+
+```
+MARGN
+Know before you pay.
+margn.margnhq.workers.dev
+```
 
 ---
+
+## Visual direction
+
+- Record **16:9**; terminal font **28–32px** minimum.
+- **One focal point per beat**; zoom/callout only on the numbers that matter.
+- Commands **pre-typed** — never type a long `curl` live on camera.
+- **English subtitles** — the video plays muted in the X feed.
+- **Never** show another participant's name (the `jq` whitelists enforce this).
+- End card on screen ≥3s.
 
 ## Rules (do not break)
 
 - Real terminal, no slides.
-- Other ASPs referred to **by ID**, never by name.
+- Other ASPs by **ID**, never by name.
 - **Don't** hide probe latency — it's the proof it's real.
 - **Don't** say "we fix OKX" → "we read a signal that's already there".
-- **Never** use the word "best" anywhere.
-- Every number on screen must come from **recording-day** runs, not copied from
-  the docs.
+- **Never** say "best" — Margn is transparent, it does not rank or recommend.
+- Every number on screen comes from **recording-day** runs, not from this doc.
 
-## Notes on the tools (already handled)
+## Cut for time — keep these for the README, not the 90s video
 
-- `quote` matching is tightened (S4): it requires all query tokens and only
-  relaxes when the full-token sample is thin, so `crypto news` returns 56 related
-  services (~$4 max), not 415 with a $66 outlier.
-- `quote`/`check` return `low_sample` / `market_low_sample` when fewer than five
-  services match, so a thin market isn't shown as a confident range.
-- `verify` never caches, times out upstream at 5s, and never returns 500.
+- Healthy-provider (402) contrast — one dead probe is enough.
+- A standalone `quote` call — `check` already shows the whole product.
+- The `low_sample` thin-market honesty beat (`summarize a pdf document`).
+
+## Tool notes (already handled)
+
+- `quote` requires all query tokens, relaxing only when the full-token sample is
+  thin, so `crypto news` returns ~56 related services, not 400+ with an outlier.
+- `quote`/`check` flag `low_sample`/`market_low_sample` under five matches.
+- `verify` never caches, times out upstream at 5s, never returns 500.
+- Multi-service agents return `AMBIGUOUS_SERVICE` unless given an exact
+  `serviceName` — Margn never guesses which endpoint you meant.
