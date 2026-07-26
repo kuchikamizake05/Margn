@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/logo-candidates/margn-3d-gate-transparent.png" alt="Margn 3D pre-purchase verification gate" width="185" />
+  <img src="./assets/avatar.png" alt="Margn 3D pre-purchase verification gate" width="185" />
 </p>
 
 <h1 align="center">Margn — Know before you pay.</h1>
