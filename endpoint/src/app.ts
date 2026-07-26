@@ -265,7 +265,12 @@ async function readJsonObject(
     if (typeof value !== "object" || value === null || Array.isArray(value)) {
       return {
         ok: false,
-        response: json(error("INVALID_BODY", "Request body must be a JSON object."))
+        response: json(
+          error(
+            "INVALID_BODY",
+            "Request body must be a JSON object with this service's fields (verify/check need 'agentId'; quote needs 'need')."
+          )
+        )
       };
     }
     return { ok: true, value: value as Record<string, unknown> };
@@ -520,7 +525,7 @@ async function verifyAgent(
   if (!endpoint) {
     return error(
       "AGENT_NOT_FOUND",
-      "Agent has no probeable A2MCP endpoint in the current snapshot."
+      "No probeable A2MCP endpoint for that agentId in the current snapshot — check the agent ID, or it may be newer than the latest scan."
     );
   }
 
@@ -748,7 +753,12 @@ export function createApp(dependencies: AppDependencies): {
           const need =
             typeof parsed.value.need === "string" ? parsed.value.need.trim() : "";
           if (tokenize(need).length === 0) {
-            return json(error("INVALID_NEED", "need must contain searchable text."));
+            return json(
+              error(
+                "INVALID_NEED",
+                "Provide 'need' — a short description of the service you're pricing, e.g. {\"need\":\"crypto news\"}."
+              )
+            );
           }
           return json(buildQuote(snapshot, need));
         }
@@ -756,7 +766,10 @@ export function createApp(dependencies: AppDependencies): {
         const agentId = normalizeAgentId(parsed.value.agentId);
         if (!agentId) {
           return json(
-            error("INVALID_AGENT_ID", "agentId must be a non-empty string or number.")
+            error(
+              "INVALID_AGENT_ID",
+              "Provide 'agentId' — the OKX.AI provider agent whose endpoint you want to check, e.g. {\"agentId\":\"3152\"}."
+            )
           );
         }
 
@@ -776,7 +789,10 @@ export function createApp(dependencies: AppDependencies): {
         const price = parsed.value.price;
         if (typeof price !== "number" || !Number.isFinite(price) || price < 0) {
           return json(
-            error("INVALID_PRICE", "price must be a finite number greater than or equal to 0.")
+            error(
+              "INVALID_PRICE",
+              "Provide 'price' — the proposed price in USDT as a number >= 0, e.g. {\"agentId\":\"3152\",\"price\":0.55}."
+            )
           );
         }
 
