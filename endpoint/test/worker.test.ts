@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import worker from "../src/index";
+import snapshot from "../data/market-snapshot.json";
 
 describe("bundled Worker", () => {
   it("serves a quote from the generated marketplace snapshot", async () => {
@@ -24,7 +25,7 @@ describe("bundled Worker", () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       need: "crypto news",
-      snapshot_date: "2026-07-23",
+      snapshot_date: snapshot.captured_at.slice(0, 10),
       note: "prices from snapshot; liveness is never cached"
     });
     expect(body.matches).toBeGreaterThan(0);
