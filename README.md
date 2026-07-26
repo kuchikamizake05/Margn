@@ -277,8 +277,7 @@ Every quoted market figure can be traced to:
 ├── assets/avatar.png           # Final 1:1 ASP identity asset
 ├── assets/logo-candidates/     # Selected 3D Gate brand assets
 ├── docs/listing.md             # Validated OKX.AI listing payload
-├── MARGN-VERIFIED.md           # Full product thesis and verified findings
-└── EXECUTION.md                # Deadline, ownership, and submission checklist
+└── MARGN-VERIFIED.md           # Full product thesis and verified findings
 ```
 
 ## Honest boundaries

@@ -41,12 +41,13 @@ curl -sS -X POST https://margn.margnhq.workers.dev/v1/check \
 **Never run `onchainos agent update`** (re-triggers QA). `wrangler deploy` is safe.
 
 **Targets re-confirmed 26 Jul, scan `agents-2026-07-26T1416` (re-confirm the morning of):**
+
 - Dead: `#5053` — single-service, ephemeral tunnel, still unreachable. Backups if it
-  revives: `#6607`, `#6668`, `#5814` (all single-target, dead 26 Jul).
+revives: `#6607`, `#6668`, `#5814` (all single-target, dead 26 Jul).
 - Value gap for "crypto news": `#3152` rank 3, `$0.55`, sec 2, 3 sales — ranked
-  **above** `#2013` rank 6, `$0.01`, sec 5, 16,469 sales. 55× pricier.
-  `#3152` is **multi-service** (17) → the check MUST pass an exact `serviceName`
-  (`Crypto News Feed`, `$0.55`), or it returns `AMBIGUOUS_SERVICE`.
+**above** `#2013` rank 6, `$0.01`, sec 5, 16,469 sales. 55× pricier.
+`#3152` is **multi-service** (17) → the check MUST pass an exact `serviceName`
+(`Crypto News Feed`, `$0.55`), or it returns `AMBIGUOUS_SERVICE`.
 - `check` on that offer: 92 comparable services, median `$0.011`, → 50× above median.
 
 ---
@@ -70,7 +71,8 @@ Screen: show the platform's `onlineStatus=1` for the agent, then run:
 curl -sS -X POST https://margn.margnhq.workers.dev/v1/verify \
   -H 'content-type: application/json' -d '{"agentId":"5053"}' | jq '{agent_id,alive,http_status,interpretation,latency_ms}'
 ```
-(The `jq` whitelist also drops `agent_name` — never show a participant's name.)
+
+(The `jq` whitelist also drops `agent_name` — never show a participant's n ame.)
 
 > "The platform marks agent #5053 online. Margn probes the real endpoint now —
 > unreachable. Thirty-three of 722 online-labeled agents show this gap."
@@ -186,7 +188,7 @@ margn.margnhq.workers.dev
 - **Don't** say "we fix OKX" → "we read a signal that's already there".
 - **Never** say "best" — Margn is transparent, it does not rank or recommend.
 - **Never** show the `interpretation` label for a `403`/auth-gated endpoint — a
-  missing API key is not a fault. Raw `http_status` only (see beat 4).
+missing API key is not a fault. Raw `http_status` only (see beat 4).
 - Every number on screen comes from **recording-day** runs, not from this doc.
 
 ## Cut for time — keep these for the README, not the 90s video
@@ -198,8 +200,9 @@ margn.margnhq.workers.dev
 ## Tool notes (already handled)
 
 - `quote` requires all query tokens, relaxing only when the full-token sample is
-  thin, so `crypto news` returns ~92 related services, not 500+ with an outlier.
+thin, so `crypto news` returns ~92 related services, not 500+ with an outlier.
 - `quote`/`check` flag `low_sample`/`market_low_sample` under five matches.
 - `verify` never caches, times out upstream at 5s, never returns 500.
 - Multi-service agents return `AMBIGUOUS_SERVICE` unless given an exact
-  `serviceName` — Margn never guesses which endpoint you meant.
+`serviceName` — Margn never guesses which endpoint you meant.
+

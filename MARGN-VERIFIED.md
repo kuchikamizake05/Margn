@@ -1,392 +1,397 @@
-# Margn — Pemeriksaan pra-pembelian untuk OKX.AI
+# Margn — Pre-purchase checks for OKX.AI
 
-> **Di detik uang bergerak, pembeli melihat Provider, Service, Price. Tidak ada
-> liveness. Tidak ada skor keamanan. Tidak ada rentang harga pasar.
-> Margn mengisi kartu itu.**
+> **At the moment money moves, buyers see Provider, Service, and Price. No
+> liveness. No security score. No market price range.
+> Margn fills that card.**
 
-**Status dokumen.** Menggantikan `MARGN.md` (v1, CFO agent), `MARGN-v2.md`
-(v2, margin engine), dan `MARGN-ROUTER.md` (v3, routing layer). Ketiganya
-disimpan sebagai arsip — jangan dipakai untuk submission.
+**Document status.** Supersedes `MARGN.md` (v1, CFO agent), `MARGN-v2.md`
+(v2, margin engine), and `MARGN-ROUTER.md` (v3, routing layer). All three are
+kept as archives—do not use them for the submission.
 
-Setiap angka di sini berasal dari satu pengukuran tunggal di mesin ini —
-**23 Juli 2026, 19:55 WIB** — bukan disalin dari dokumen sebelumnya. Angka di
-ketiga dokumen lama sebagian besar **tidak akurat** — lihat §7.
+Every number here comes from a single measurement on this machine—
+**July 23, 2026, 19:55 WIB**—and was not copied from earlier documents. Most
+figures in those three older documents are **inaccurate**—see §7.
 
-Skrip dan data mentahnya ada di `research/marketplace-scan/`, dan bisa
-dijalankan ulang kapan saja: `scan.py` → `stats.py` · `probe.py` ·
-`matchtest.py`. Setiap run menulis file bertanda waktu sampai menit
-(`agents-2026-07-23T1955.json`) dan menolak menimpa run sebelumnya, sehingga
-angka yang sudah dikutip di dokumen ini selalu bisa ditelusuri ke file
-sumbernya.
+The scripts and raw data live in `research/marketplace-scan/` and can be rerun
+at any time: `scan.py` → `stats.py` · `probe.py` · `matchtest.py`. Every run
+writes a minute-level timestamped file (`agents-2026-07-23T1955.json`) and
+refuses to overwrite a previous run, so every figure quoted in this document
+can always be traced back to its source file.
 
 ---
 
-## 1. Apa yang benar-benar rusak
+## 1. What is actually broken
 
-`asp-match` adalah matcher first-party OKX. Ia menemukan layanan yang relevan
-dengan baik. Ia **tidak memeringkat berdasarkan nilai sama sekali.**
+`asp-match` is OKX's first-party matcher. It retrieves relevant services well.
+It **does not rank by value at all.**
 
-Permintaan `"get latest crypto news headlines"`, dijalankan dari agent #7520:
+The request `"get latest crypto news headlines"`, run from agent #7520:
 
-| # | Agent | Harga | feedbackRate | securityRate | Terjual |
+| # | Agent | Price | feedbackRate | securityRate | Sold |
 | --- | --- | --- | --- | --- | --- |
 | 1 | #4464 | $0.01 | — | — | 5 |
 | 2 | #5325 | $0.10 | — | — | — |
 | **3** | **#3152** | **$0.55** | **0.0** | **2.00** | **1** |
 | 4 | #5077 | $0.05 | — | — | 3 |
-| **5** | **#2013** | **$0.01** | **100.0** | **5.00** | **1.670** |
+| **5** | **#2013** | **$0.01** | **100.0** | **5.00** | **1,670** |
 | 6 | #6923 | $0.005 | — | — | 14 |
 | 7 | #5209 | $0.05 | — | — | 2 |
 | 8 | #4462 | $0.01 | — | — | 6 |
 | 9 | #5634 | $0.06 | 100.0 | 5.00 | 1 |
 | 10 | #3577 | $0.05 | 100.0 | 5.00 | 4 |
 
-Bandingkan peringkat 3 dan 5. **#2013 lebih baik pada setiap metrik yang
-diukur platform sendiri** — 55× lebih murah, reputasi 100.0 lawan 0.0, keamanan
-5.00 lawan 2.00, dan **1.670 penjualan lawan 1**. Ia tetap diperingkat di
-bawahnya.
+Compare ranks 3 and 5. **#2013 is better on every metric measured by the
+platform itself**—55× cheaper, reputation 100.0 versus 0.0, security 5.00
+versus 2.00, and **1,670 sales versus 1**. It is still ranked below the other
+option.
 
-Ini bukan soal "yang murah kalah". Penjual paling terbukti di seluruh daftar
-kalah dari penjual dengan satu penjualan dan rating umpan balik nol.
+This is not a case of "the cheaper option losing." The most proven seller in
+the entire list loses to a seller with one sale and a feedback rating of zero.
 
-### Dan ini sistematis, bukan satu kasus sial
+### And it is systematic, not one unlucky case
 
-Diuji pada delapan kebutuhan berbeda. Pada **7 dari 7 yang berhasil dijalankan**,
-opsi terbaik-menurut-nilai diperingkat di bawah opsi yang lebih mahal *dan*
-lebih buruk:
+Eight different needs were tested. In **all 7 of the 7 tests that completed**,
+the best-value option ranked below an option that was both more expensive
+*and* worse:
 
-| Kebutuhan | Peringkat opsi terbaik | Yang diperingkat di atasnya |
+| Need | Best option's rank | Option ranked above it |
 | --- | --- | --- |
-| analyze portfolio | 5 | **800×** lebih mahal, tanpa skor |
-| crypto news | 5 | 55× lebih mahal, `securityRate` 2.0, 1 penjualan |
-| swap on dex | 5 | 40× lebih mahal, tanpa skor |
-| translate text | 7 | 20× lebih mahal, tanpa skor |
-| generate image | 9 | 3× lebih mahal |
-| wallet balance | 10 | $0.8 lawan $0, tanpa skor |
-| smart contract audit | 10 | $1.0 lawan $0, tanpa skor |
+| analyze portfolio | 5 | **800×** more expensive, no scores |
+| crypto news | 5 | 55× more expensive, `securityRate` 2.0, 1 sale |
+| swap on dex | 5 | 40× more expensive, no scores |
+| translate text | 7 | 20× more expensive, no scores |
+| generate image | 9 | 3× more expensive |
+| wallet balance | 10 | $0.8 versus $0, no scores |
+| smart contract audit | 10 | $1.0 versus $0, no scores |
 
-Kebutuhan kedelapan (`"get token price and market data"`) tidak bisa diuji:
-`asp-match` mengembalikan `code=4001: SearchApi.taskSearchAgentPost failed`.
-Ini **deterministik, bukan transien** — frasa `"token price data"` selalu gagal
-sementara `"token price"` berhasil. Bug kecil milik platform; jangan dipakai
-sebagai bahan serangan, tapi tahu bahwa ia ada.
+The eighth need (`"get token price and market data"`) could not be tested:
+`asp-match` returned `code=4001: SearchApi.taskSearchAgentPost failed`.
+This is **deterministic, not transient**—the phrase `"token price data"` always
+fails while `"token price"` succeeds. It is a minor platform bug; do not use it
+as an attack, but be aware that it exists.
 
-Retrieval-nya bagus. **Ranking-nya tidak ada.**
+Retrieval is good. **Ranking is absent.**
 
-Juri bisa memverifikasi seluruh tabel ini dengan satu perintah CLI di mesin
-mereka sendiri. Pembandingnya adalah API OKX sendiri.
+Judges can verify this entire table with a single CLI command on their own
+machines. The reference point is OKX's own API.
 
-### ⚠️ Peringkat bergeser harian — jangan mengunci satu angka
+### ⚠️ Rankings shift daily—do not hard-code one number
 
-Diukur 22 Juli, peringkat 1–5 untuk `crypto news` identik dengan hari ini, tapi
-#2118 ($0.001 · keamanan 4.75 · 221 penjualan) **jatuh keluar dari 10 besar**
-dalam 24 jam. Angka unggulan kemarin — 550× — hari ini menjadi 55×.
+On July 22, ranks 1–5 for `crypto news` were identical to today's, but #2118
+($0.001 · security 4.75 · 221 sales) **fell out of the top 10** within 24 hours.
+Yesterday's headline figure—550×—became 55× today.
 
-**Konsekuensi praktis:** jangan menaruh satu angka rasio di judul demo atau
-post X. Yang stabil adalah **mekanismenya** (peringkat 3 = $0.55, keamanan 2.0,
-1 penjualan — bertahan persis lintas dua hari), bukan besaran rasionya.
-Jalankan ulang `matchtest.py` di hari perekaman demo, dan kutip angka hari itu.
+**Practical consequence:** do not put a single ratio in the demo title or X
+post. What remains stable is **the mechanism** (rank 3 = $0.55, security 2.0,
+1 sale—exactly unchanged across two days), not the ratio itself. Rerun
+`matchtest.py` on the day the demo is recorded and quote that day's figure.
 
 ---
 
-## 2. Kondisi pasar, terukur
+## 2. Market conditions, measured
 
-Union **45 query** `onchainos agent search` (daftar query dibekukan di `scan.py`
-dan ikut tersimpan di tiap file keluaran, agar dua pengukuran bisa
-dibandingkan). Query luas (`"a"`, `"the"`) sama-sama mengembalikan ~seluruh
-pasar, jadi ini praktis sensus, bukan sampel.
+A union of **45 `onchainos agent search` queries** (the query list is frozen in
+`scan.py` and stored in every output file so measurements can be compared).
+Broad queries (`"a"`, `"the"`) both return nearly the entire market, making
+this effectively a census rather than a sample.
 
-| Metrik | 23 Juli | 22 Juli | Δ |
+| Metric | July 23 | July 22 | Δ |
 | --- | --- | --- | --- |
-| Agent unik | **1.006** | 985 | +21 |
-| Layanan | **2.439** (A2MCP 1.673 · A2A 766) | 2.344 | +95 |
-| Endpoint unik | **1.585** | 1.486 | +99 |
-| Total penjualan | **27.971** | 25.932 | **+2.039 dalam sehari** |
-| Sedang offline | **218 (21,7%)** | 22,4% | −0,7 pp |
-| **Nol penjualan** | **554 (55,1%)** | 55,5% | −0,4 pp |
-| Penjual teratas (PixelBrief) | 10.217 = **36,5%** | 39,0% | −2,5 pp |
+| Unique agents | **1,006** | 985 | +21 |
+| Services | **2,439** (A2MCP 1,673 · A2A 766) | 2,344 | +95 |
+| Unique endpoints | **1,585** | 1,486 | +99 |
+| Total sales | **27,971** | 25,932 | **+2,039 in one day** |
+| Currently offline | **218 (21.7%)** | 22.4% | −0.7 pp |
+| **Zero sales** | **554 (55.1%)** | 55.5% | −0.4 pp |
+| Top seller (PixelBrief) | 10,217 = **36.5%** | 39.0% | −2.5 pp |
 
-Pasar tumbuh ~2.000 transaksi per hari menjelang tenggat, tapi **proporsi yang
-tidak pernah menjual apa pun praktis tidak bergerak** — 55%. Pertumbuhan
-mengalir ke agent yang sudah menang.
+The market is growing by roughly 2,000 transactions per day as the deadline
+approaches, yet **the share that has never sold anything is barely moving**—
+55%. Growth flows to agents that are already winning.
 
-**Kategori tidak membantu memilih apa pun:**
-Software services 669 (66,5%) · Finance 156 (15,5%) · Lifestyle 102 (10,1%) ·
-Art creation 67 (6,7%) · lainnya 13.
+**Categories do not help buyers choose:**
+Software services 669 (66.5%) · Finance 156 (15.5%) · Lifestyle 102 (10.1%) ·
+Art creation 67 (6.7%) · other 13.
 
-**Harga membentang sembilan orde besaran.** 2.273 layanan berharga, 169 gratis.
-Terendah $0.000001, tertinggi $5.000. Harga tersering: $0.01 (320 layanan),
-$0.1 (289), $1.0 (278).
+**Prices span nine orders of magnitude.** There are 2,273 paid services and
+169 free ones. The lowest price is $0.000001 and the highest is $5,000. The
+most common prices are $0.01 (320 services), $0.1 (289), and $1.0 (278).
 
-### Temuan yang membatasi desain
+### Findings that constrain the design
 
 ```
-feedbackRate : ada pada 257/1006  (26%)  — null 749
-securityRate : ada pada 258/1006  (26%)  — null 748
+feedbackRate : present for 257/1006  (26%)  — null for 749
+securityRate : present for 258/1006  (26%)  — null for 748
 ```
 
-**74% agent tidak punya skor reputasi maupun keamanan.** Dari 258 yang punya
-`securityRate`, 175 bernilai 5.0 — jadi yang benar-benar membedakan hanya 83
-agent (8% pasar). Rasio ini stabil lintas semua pengukuran.
+**74% of agents have neither a reputation nor security score.** Of the 258
+with a `securityRate`, 175 score 5.0—so only 83 agents (8% of the market) are
+actually differentiated by it. This ratio is stable across all measurements.
 
-Konsekuensinya tegas: **reputasi tidak bisa jadi tulang punggung peringkat.**
-Yang tersedia untuk seluruh pasar hanya **harga** dan **liveness**. Itulah yang
-Margn ukur.
+The consequence is clear: **reputation cannot be the backbone of ranking.**
+The only signals available across the entire market are **price** and
+**liveness**. Those are what Margn measures.
 
-### Liveness terukur langsung
+### Liveness measured directly
 
-Probe 300 dari 1.585 endpoint (sampel acak, seed tetap = 7):
+A probe of 300 out of 1,585 endpoints (random sample, fixed seed = 7):
 
-| Hasil | Jumlah | % |
+| Result | Count | % |
 | --- | --- | --- |
-| `402` — sehat, siap dibayar | 206 | **68,7%** |
-| `404` / `405` / `403` / `406` / `400` / `422` | 64 | 21,3% |
-| `200` — tidak menagih | 20 | 6,7% |
-| tidak terjangkau (timeout / DNS) | 10 | **3,3%** |
+| `402` — healthy, ready for payment | 206 | **68.7%** |
+| `404` / `405` / `403` / `406` / `400` / `422` | 64 | 21.3% |
+| `200` — not charging | 20 | 6.7% |
+| unreachable (timeout / DNS) | 10 | **3.3%** |
 
-Sebagian `405` kemungkinan endpoint POST-only yang kuprobe dengan GET —
-dokumen OKX sendiri memperingatkan ini. **Jadi ~69% adalah batas bawah**, dan
-angka ini harus disajikan sebagai batas bawah, bukan sebagai vonis.
+Some `405` responses may come from POST-only endpoints that I probed with
+GET—OKX's own documentation warns about this. **That makes ~69% a lower
+bound**, and it must be presented as a lower bound rather than a verdict.
 
-**Angka probe bervariasi ±3 pp antar-run** pada seed dan sampel yang sama
-(terukur 67,0% · 65,3% · 68,7% dalam dua hari) — itu variansi jaringan, bukan
-perubahan pasar. Kutip sebagai kisaran "sekitar dua pertiga", jangan sebagai
-angka presisi.
+**Probe results vary by ±3 pp between runs** on the same seed and sample
+(67.0% · 65.3% · 68.7% measured across two days). That is network variance,
+not market change. Quote this as "roughly two-thirds," not as a precise figure.
 
-**`onlineStatus` tidak dapat dipercaya sebagai sinyal liveness.** Dari 297
-endpoint yang platform tandai `onlineStatus=1` (online), hanya **68% yang
-benar-benar mengembalikan `402`** dan 3% tidak menjawab sama sekali. Inilah
-justifikasi paling langsung untuk `verify()`: satu-satunya cara tahu sebuah ASP
-hidup adalah memanggilnya sekarang, bukan membaca flag-nya.
+**`onlineStatus` cannot be trusted as a liveness signal.** Of the 297 endpoints
+the platform marks `onlineStatus=1` (online), only **68% actually return `402`**
+and 3% do not respond at all. This is the most direct justification for
+`verify()`: the only way to know whether an ASP is alive is to call it now,
+not read its flag.
 
 ---
 
-## 3. Batas keras: tidak ada pembeli otonom
+## 3. Hard constraint: no autonomous buyers
 
-Diverifikasi terhadap repo resmi `okx/onchainos-skills`.
+Verified against the official `okx/onchainos-skills` repository.
 
 - `okx-agent-payments-protocol/SKILL.md` —
   *"You MUST stop and confirm before paying — do not auto-pay."*
-  Gerbang konfirmasi wajib lewat `AskUserQuestion`; `payment pay` menuntut
-  `--yes`, yang mereka sebut *"the fund-moving confirming gate"*.
-- `okx-ai/references/watch-core.md` — balasan pengguna
+  The mandatory confirmation gate goes through `AskUserQuestion`; `payment pay`
+  requires `--yes`, which they call *"the fund-moving confirming gate"*.
+- `okx-ai/references/watch-core.md` — a user's response
   *"is not a license to autonomously pick a provider, start a negotiation,
   solicit quotes..."*
 - `task-user-actions-publish.md` — *"Display the service list to the user and
   ask them to pick one"*, *"Loop until a match is found or the user gives up"*.
 
-Yang otonom hanyalah tahap **setelah** pilihan dijatuhkan: negosiasi (maks 2
-ronde), delivery, sub-session.
+Only the stages **after** a choice has been made are autonomous: negotiation
+(up to 2 rounds), delivery, and sub-session.
 
-**Pembagiannya: manusia memilih dan membayar, agent mengeksekusi.**
+**The division is simple: humans choose and pay; agents execute.**
 
-### Dua hal yang mati karena ini
+### Two ideas this eliminates
 
-1. **Router runtime.** Konsep "dipanggil sebelum setiap pembelian" pada
-   frekuensi mesin tidak punya pemanggil. Model $0.001 × volume besar tidak ada
-   dasarnya.
-2. **Pay-per-call untuk Margn sendiri.** Kalau Margn dijual sebagai A2MCP,
-   setiap panggilan ke Margn memicu prompt konfirmasi pembayaran ke manusia.
-   Meminta orang menyetujui satu dialog pembayaran demi saran tentang pembelian
-   yang sedang mereka setujui di dialog sebelahnya — friksinya melebihi
-   nilainya.
+1. **A runtime router.** The concept of being "called before every purchase" at
+   machine frequency has no caller. A $0.001 × high-volume model has no basis.
+2. **Pay-per-call for Margn itself.** If Margn is sold as an A2MCP, every call
+   to Margn triggers a payment confirmation prompt for the human. Asking
+   someone to approve one payment dialog for advice about the purchase they
+   are already approving in the adjacent dialog creates more friction than
+   value.
 
-Ini bukan alasan menyerah. Ini alasan mengubah bentuk.
+This is not a reason to give up. It is a reason to change the product's form.
 
 ---
 
-## 4. Bentuk yang bertahan
+## 4. The form that survives
 
-Bukan router. **Pemeriksaan pra-pembelian untuk manusia**, dipanggil sekali per
-keputusan beli — bukan sekali per panggilan API.
+Not a router. **A pre-purchase check for humans**, called once per buying
+decision—not once per API call.
 
-Kartu konfirmasi yang dilihat pembeli sebelum dana bergerak isinya persis ini:
+The confirmation card a buyer sees before funds move contains exactly this:
 
 | Field | Value |
 | --- | --- |
 | Provider | Agent 864 |
 | Service Price | 0.08 USDT |
 
-Tidak ada liveness. Tidak ada skor. Tidak ada konteks harga. Margn mengisinya.
+No liveness. No score. No price context. Margn fills those gaps.
 
-### Permukaan produk
+### Product surface
 
-| Tool | Fungsi | Sumber data |
+| Tool | Function | Data source |
 | --- | --- | --- |
-| `verify(agentId)` | Hidup atau mati **sekarang** — probe langsung, tidak pernah dari cache | probe HTTP |
-| `quote(need)` | Rentang harga pasar untuk kebutuhan itu: min · median · maks | 2.273 harga publik |
-| `check(agentId, price)` | Gabungan keduanya + posisi harga terhadap pasar | keduanya |
+| `verify(agentId)` | Alive or dead **right now**—a direct probe, never cached | HTTP probe |
+| `quote(need)` | Market price range for that need: min · median · max | 2,273 public prices |
+| `check(agentId, price)` | Both results + price position within the market | both |
 
-`verify()` adalah tool terpenting, bukan `route()`. "Endpoint ini mati" bersifat
-biner dan tidak bisa dibantah. "Ini terlalu mahal" selalu bisa didebat.
+`verify()` is the most important tool, not `route()`. "This endpoint is dead"
+is binary and indisputable. "This is too expensive" can always be debated.
 
-### Prinsip yang tidak boleh dilanggar
+### Principles that must not be broken
 
-- **Jangan pernah mengklaim "terbaik".** Klaim "transparan". Tampilkan rentang,
-  tandai outlier, sebutkan alasannya, biarkan manusia yang memutuskan.
-- **Jangan pernah memakai penilaian kualitas subjektif.** Hanya fakta terukur:
-  harga, liveness, skor milik platform sendiri.
-- **Liveness tidak boleh di-cache.** Harga boleh.
-- **Jangan pernah memosisikan Margn sebagai pengganti `asp-match`.** Selalu
-  sebagai lapisan di atasnya.
+- **Never claim "best."** Claim "transparent." Show the range, flag outliers,
+  explain why, and let the human decide.
+- **Never use subjective quality judgments.** Use only measured facts: price,
+  liveness, and the platform's own scores.
+- **Liveness must never be cached.** Prices may be cached.
+- **Never position Margn as a replacement for `asp-match`.** It is always a
+  layer on top.
 
 ---
 
-## 5. Demo 90 detik
+## 5. The 90-second demo
 
-Semua data nyata, semua bisa diverifikasi ulang oleh juri.
+All data is real, and judges can independently verify all of it.
 
-| Waktu | Isi |
+| Time | Content |
 | --- | --- |
-| 0–10 dtk | `verify()` menangkap ASP yang mati. *"Kamu akan membayar layanan yang tidak jalan. Tidak ada yang memberitahumu."* Biner, tidak bisa dibantah. |
-| 10–35 dtk | Jalankan `asp-match` bawaan OKX, layar penuh, tidak dipotong. Zoom ke peringkat 3: **$0.55 · feedback 0.0 · security 2.0**. *"Ini API OKX sendiri. Jalankan perintah yang sama sekarang juga."* |
-| 35–55 dtk | Margn berdampingan: peringkat 5 = $0.01, reputasi 100, keamanan 5.00, **1.670 penjualan** — lebih baik di setiap metrik, tetap di bawah. *"Sinyalnya sudah ada di API OKX. Tidak ada yang membacanya."* |
-| 55–75 dtk | Tabel 7-dari-7: kesenjangan ini sistematis. Lalu efek ekor panjang — **55% agent tidak pernah menjual apa pun**. |
-| 75–90 dtk | Tiga tool, satu kalimat masing-masing. Selesai. |
+| 0–10 sec | `verify()` catches a dead ASP. *"You are about to pay for a service that does not work. Nothing tells you that."* Binary, indisputable. |
+| 10–35 sec | Run OKX's built-in `asp-match`, full screen and uncut. Zoom in on rank 3: **$0.55 · feedback 0.0 · security 2.0**. *"This is OKX's own API. Run the same command right now."* |
+| 35–55 sec | Margn side by side: rank 5 = $0.01, reputation 100, security 5.00, **1,670 sales**—better on every metric, still ranked lower. *"The signal is already in OKX's API. Nobody reads it."* |
+| 55–75 sec | The 7-of-7 table: the gap is systematic. Then the long-tail effect—**55% of agents have never sold anything**. |
+| 75–90 sec | Three tools, one sentence each. Done. |
 
-**Yang harus dihindari:** jangan pakai slide (terminal asli saja); jangan
-sebut nama ASP yang kamu tampilkan sebagai contoh buruk — pakai ID, mereka
-peserta lain; jangan sembunyikan latensi probe; jangan bilang "kami memperbaiki
-OKX" — bilang "kami membaca sinyal yang sudah ada di sana".
+**Avoid this:** do not use slides (use the real terminal only); do not name an
+ASP shown as a bad example—use its ID, because they are fellow participants;
+do not hide probe latency; do not say "we fix OKX"—say "we read signals that
+are already there."
 
 ---
 
-## 6. Registrasi dan tenggat
+## 6. Registration and deadline
 
-Submission ditutup **27 Juli 2026, 23:59 UTC**, dan ASP harus **sudah live**,
-bukan sekadar disubmit. Antrean review OKX di luar kendali kita — ini risiko
-terbesar, dan tidak ada hubungannya dengan kualitas ide.
+Submissions close on **July 27, 2026, at 23:59 UTC**, and the ASP must already
+be **live**, not merely submitted. OKX's review queue is outside our control—
+this is the biggest risk, and it has nothing to do with the idea's quality.
 
-**A2MCP menuntut endpoint yang sudah ter-deploy.** Dari `identity-register.md` §6:
-*"Require `https://`, publicly reachable, and really deployed"* — `localhost`,
-IP privat, URL mock, dan placeholder ditolak. Endpoint bersifat **permanen
-on-chain**; menggantinya butuh transaksi update.
+**A2MCP requires an already-deployed endpoint.** From
+`identity-register.md` §6: *"Require `https://`, publicly reachable, and really
+deployed"*—`localhost`, private IPs, mock URLs, and placeholders are rejected.
+The endpoint is **permanent on-chain**; replacing it requires an update
+transaction.
 
-Karena itu urutannya: **endpoint dulu, lalu daftar sekali dengan URL final.**
-Jangan tergoda mendaftar A2A hanya demi masuk antrean — A2A menjadikan tiap
-pembelian sebuah task escrow bernegosiasi, bentuk yang salah untuk pemeriksaan
-cepat, dan tipe layanan tidak bisa diubah setelah dibuat.
+The order is therefore: **endpoint first, then register once with the final
+URL.** Do not be tempted to register A2A just to enter the queue—A2A turns each
+purchase into a negotiated escrow task, the wrong shape for a quick check, and
+the service type cannot be changed after creation.
 
-**Checklist registrasi** (semuanya wajib, `severity: block`):
+**Registration checklist** (all are mandatory, `severity: block`):
 
-- Nama 3–25 karakter, tanpa penanda "test", tanpa nama tokoh publik
-- Deskripsi ≤500 karakter
-- **Avatar file gambar 1:1** — link gambar ditolak, tidak ada default untuk ASP
-- Deskripsi layanan **dua bagian di baris terpisah**: ① fungsi + untuk siapa,
-  ② apa yang harus disediakan pemanggil. Masing-masing ≤200 karakter. Dilarang:
-  contoh prompt, link GitHub, detail tech-stack, disclaimer
-- Fee sebagai string angka polos, USDT implisit, ≤6 desimal — wajib ada untuk
-  A2MCP, tapi **`"0"` sah dan lolos review** (terverifikasi di pasar: agent
-  #6711 dan #2162 menjual A2MCP dengan `fee: "0"`)
+- Name must be 3–25 characters, contain no "test" marker, and use no public
+  figure's name
+- Description must be ≤500 characters
+- **1:1 image file for the avatar**—image links are rejected, and ASPs have no
+  default
+- Service description must have **two sections on separate lines**: ① what it
+  does + who it is for, ② what the caller must provide. Each must be ≤200
+  characters. Prohibited: example prompts, GitHub links, tech-stack details,
+  disclaimers
+- Fee must be a plain numeric string, implicitly USDT, with ≤6 decimals—it is
+  mandatory for A2MCP, but **`"0"` is valid and passes review** (verified in the
+  market: agents #6711 and #2162 sell A2MCP services with `fee: "0"`)
 
-> Catatan: `validate-listing` **tidak ada** di CLI v4.3.0. Empat aturan pertama
-> di atas juga tidak divalidasi runtime — asalnya dari `okx/onchainos-skills`.
-> Tetap patuhi, tapi jangan berharap pesan error yang sama persis.
+> Note: `validate-listing` **does not exist** in CLI v4.3.0. The first four
+> rules above are also not validated at runtime—they come from
+> `okx/onchainos-skills`. Follow them anyway, but do not expect identical error
+> messages.
 
-### Yang terverifikasi langsung di CLI (23 Juli)
+### Verified directly in the CLI (July 23)
 
-- **A2MCP bukan server MCP.** Endpoint yang terdaftar berbentuk REST biasa —
-  `/audit`, `/analyze`, `/v1/quote`. Cukup HTTPS yang menerima POST dan
-  membalas JSON; tidak ada JSON-RPC, tidak ada handshake.
-- **Dua gerbang, bukan satu.** QA konten jalan seketika di `agent create`;
-  antrean review sesungguhnya ada di `agent activate`. Salah format ketahuan
-  detik itu juga, bukan setelah menunggu berhari-hari.
-- **`agent update` memicu QA ulang.** Setelah approved, jangan sentuh. Mengubah
-  kode di balik URL tidak menyentuh registry sama sekali — yang berbahaya hanya
-  mengubah string endpoint-nya.
-- **Boleh lebih dari satu ASP per wallet** (`pre-check` → `uniqueness:
-  "multiple"`), jadi percobaan pertama yang gagal bukan akhir.
-- **Avatar harus diunggah lewat `agent upload --file`**, lalu URL CDN hasilnya
-  dipakai di `--picture`. Link gambar eksternal ditolak.
+- **A2MCP is not an MCP server.** Registered endpoints are ordinary REST
+  endpoints—`/audit`, `/analyze`, `/v1/quote`. HTTPS accepting POST and
+  returning JSON is enough; there is no JSON-RPC and no handshake.
+- **There are two gates, not one.** Content QA runs immediately during
+  `agent create`; the actual review queue begins at `agent activate`. A format
+  error is caught immediately, not after waiting for days.
+- **`agent update` triggers QA again.** Once approved, do not touch it.
+  Changing the code behind the URL does not touch the registry at all—the only
+  dangerous change is altering the endpoint string.
+- **More than one ASP per wallet is allowed** (`pre-check` → `uniqueness:
+  "multiple"`), so a failed first attempt is not the end.
+- **The avatar must be uploaded with `agent upload --file`**, then the returned
+  CDN URL is passed to `--picture`. External image links are rejected.
 
-**Sudah siap di mesin ini:** `onchainos` v4.3.0 · login Apple
-`0xd4cc…4078` · agent User **#7520 "Margn Recon"** (peran User; identitas ASP
-akan jadi agent terpisah, karena role tidak bisa diubah setelah create).
+**Already prepared on this machine:** `onchainos` v4.3.0 · Apple login
+`0xd4cc…4078` · User agent **#7520 "Margn Recon"** (User role; the ASP identity
+will be a separate agent because roles cannot be changed after creation).
 `pre-check --role asp` → `canCreate: true`, `aspCount: 0`.
 
 ---
 
-## 7. Koreksi terhadap dokumen lama
+## 7. Corrections to the older documents
 
-Angka di `MARGN-v2.md` dan `MARGN-ROUTER.md` diukur 21 Juli di mesin lain.
-Diukur ulang 22 dan 23 Juli:
+Figures in `MARGN-v2.md` and `MARGN-ROUTER.md` were measured on July 21 on a
+different machine. They were remeasured on July 22 and 23:
 
-| Klaim lama | Terukur (23 Jul) | |
+| Old claim | Measured (July 23) | |
 | --- | --- | --- |
-| 140 agent | **1.006** | 7× lebih besar |
-| 477 layanan | **2.439** | 5× lebih besar |
-| 34% offline | **21,7%** | dilebihkan |
-| 39% nol penjualan | **55,1%** | diremehkan |
-| 47% konsentrasi | **36,5%** | dilebihkan |
-| endpoint sehat 81% | **~69%** | dilebihkan |
-| `securityRate` = sinyal paling diskriminatif | null pada 74% agent | **klaim dicoret** |
+| 140 agents | **1,006** | 7× larger |
+| 477 services | **2,439** | 5× larger |
+| 34% offline | **21.7%** | overstated |
+| 39% zero sales | **55.1%** | understated |
+| 47% concentration | **36.5%** | overstated |
+| 81% healthy endpoints | **~69%** | overstated |
+| `securityRate` = most discriminating signal | null for 74% of agents | **claim removed** |
 
-Yang **bertahan utuh**: kesenjangan ranking `asp-match`, direproduksi dua hari
-berturut-turut, terbukti sistematis lintas semua kebutuhan yang bisa diuji.
-Peringkat 3 untuk `crypto news` — #3152, $0.55, keamanan 2.0, 1 penjualan —
-tidak bergeser sedikit pun dalam 24 jam.
+What **survives intact** is the `asp-match` ranking gap, reproduced on two
+consecutive days and shown to be systematic across every testable need. Rank 3
+for `crypto news`—#3152, $0.55, security 2.0, 1 sale—did not move at all in
+24 hours.
 
-Tiga angka yang jadi tulang punggung demo lama — 47%, 39%, 34% — semuanya
-salah. Kalau juri mengecek sendiri, dan mereka bisa dengan satu perintah,
-kredibilitas habis di detik itu. **Jangan pakai angka lama di mana pun.**
+The three figures underpinning the old demo—47%, 39%, 34%—are all wrong. If
+judges check them themselves, which they can do with one command, credibility
+is gone instantly. **Do not use the old figures anywhere.**
 
-**Aturan yang berlaku ke depan:** jalankan ulang `scan.py` + `matchtest.py`
-pada hari perekaman demo dan hari submission. Pasar bergerak ~2.000 transaksi
-per hari; angka berumur tiga hari sudah bisa meleset.
-
----
-
-## 8. Risiko — jujur
-
-**OKX bisa membangun ini sendiri, dalam seminggu.** Tidak ada moat; ini
-pengurutan berdasarkan field yang sudah ada di API mereka. Mitigasi: hadiahnya
-mencakup partnership, jadi "diserap OKX" bukan kekalahan — membuktikan
-kebutuhannya lebih dulu adalah posisi yang baik.
-
-**Reputasi tipis.** 74% pasar tanpa skor. Produk hanya boleh menjanjikan apa
-yang bisa diukur untuk seluruh pasar: harga dan liveness.
-
-**Menghakimi peserta lain itu sensitif.** Margn memeringkat ASP milik peserta
-hackathon lain. Jaga peringkat tetap transparan dan berbasis fakta terukur.
-
-**Tenggat, dan ketergantungan pada review.** Lihat §6. Ini penentu terbesar,
-dan bukan soal ide.
-
-**Kualitas output tidak terukur.** Margn mengukur harga, liveness, reputasi —
-bukan mutu hasil. $0.001 dan $0.55 belum tentu barang yang sama. Karena itu
-produk ini menyajikan konteks, bukan vonis "terbaik".
+**Rule going forward:** rerun `scan.py` + `matchtest.py` on the day the demo is
+recorded and on submission day. The market moves by roughly 2,000 transactions
+per day; a three-day-old figure can already be wrong.
 
 ---
 
-## 9. Fit ke track
+## 8. Risks—honestly
+
+**OKX could build this itself in a week.** There is no moat; this is sorting
+using fields already available in its API. Mitigation: the prize includes a
+partnership, so being "absorbed by OKX" is not a loss—proving the need first is
+a strong position.
+
+**Sparse reputation data.** 74% of the market has no scores. The product may
+promise only what can be measured across the entire market: price and
+liveness.
+
+**Judging other participants is sensitive.** Margn ranks ASPs owned by other
+hackathon participants. Keep the ranking transparent and based on measured
+facts.
+
+**Deadline and review dependency.** See §6. This is the biggest determinant,
+and it is not about the idea.
+
+**Output quality is not measured.** Margn measures price, liveness, and
+reputation—not result quality. A $0.001 service and a $0.55 service are not
+necessarily equivalent. That is why the product presents context rather than
+a "best" verdict.
+
+---
+
+## 9. Track fit
 
 | Track | Prize | Fit |
 | --- | --- | --- |
-| **Software Utility** | 2.500 USDT each | **Target utama** — infrastruktur murni, pesaing paling tipis |
-| **Best Product** | $20k (1st $10k) | Upside kalau eksekusinya rapi |
-| ~~Revenue Rocket~~ | — | **Coret.** Mati secara struktural (§3), bukan hanya karena waktu |
+| **Software Utility** | 2,500 USDT each | **Primary target**—pure infrastructure, the least crowded field |
+| **Best Product** | $20k (1st $10k) | Upside if execution is polished |
+| ~~Revenue Rocket~~ | — | **Drop it.** Structurally impossible (§3), not merely constrained by time |
 
 ---
 
-## 10. Langkah berikutnya
+## 10. Next steps
 
-1. Bangun endpoint minimal: `verify` · `quote` · `check` — POST masuk, JSON
-   keluar. **Tanpa x402:** ketiganya didaftarkan `fee: "0"`, jadi tidak ada
-   gerbang konfirmasi pembayaran yang menghalangi agent memanggil Margn (§3),
-   dan tidak ada alur pembayaran yang perlu diimplementasikan sama sekali.
-2. Deploy ke HTTPS publik yang stabil dan permanen. Pakai domain sendiri —
-   URL bersifat permanen on-chain, jadi pindah hosting nanti cukup ubah DNS
-   ketimbang `agent update` yang memicu QA ulang.
-3. Siapkan avatar 1:1 dan teks listing sesuai checklist §6.
-4. Daftarkan identitas ASP sekali, dengan URL final.
-5. Rekam demo §5, posting di X dengan `#OKXAI`.
-6. Submit Google Form sebelum 27 Juli 23:59 UTC.
+1. Build the minimal endpoint: `verify` · `quote` · `check`—POST in, JSON out.
+   **No x402:** all three are registered with `fee: "0"`, so there is no
+   payment confirmation gate preventing agents from calling Margn (§3), and no
+   payment flow needs to be implemented at all.
+2. Deploy to stable, permanent public HTTPS. Use a custom domain—the URL is
+   permanent on-chain, so moving hosts later only requires a DNS change rather
+   than an `agent update` that triggers QA again.
+3. Prepare a 1:1 avatar and listing text that follows the §6 checklist.
+4. Register the ASP identity once, using the final URL.
+5. Record the §5 demo and post it on X with `#OKXAI`.
+6. Submit the Google Form before July 27 at 23:59 UTC.
 
-> **Catatan metodologi.** Agent, layanan, harga, kategori, skor, dan hasil
-> `asp-match` adalah pengukuran penuh (23 Juli 2026, union 45 query). Kesehatan
-> endpoint adalah sampel 300 dari 1.585 dan disajikan sebagai batas bawah.
-> Skrip, data mentah, dan keluaran tiap run ada di `research/marketplace-scan/`
-> (`agents-<tanggal>T<jam>.json`, `stats-*.txt`, `probe-*.txt`,
-> `matchtest-*.txt`) — bisa dijalankan ulang dan dibandingkan antar run kapan
-> pun. Nama file memuat jam dan `scan.py` menolak menimpa run yang sudah ada,
-> jadi setiap angka di dokumen ini tetap punya file sumber yang utuh.
+> **Methodology note.** Agents, services, prices, categories, scores, and
+> `asp-match` results are full measurements (July 23, 2026, union of 45
+> queries). Endpoint health is a sample of 300 out of 1,585 and is presented as
+> a lower bound. Scripts, raw data, and output from every run live in
+> `research/marketplace-scan/` (`agents-<date>T<time>.json`, `stats-*.txt`,
+> `probe-*.txt`, `matchtest-*.txt`) and can be rerun and compared at any time.
+> Filenames include the time and `scan.py` refuses to overwrite an existing
+> run, so every figure in this document retains an intact source file.
